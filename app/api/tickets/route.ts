@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { console } from "inspector";
 
 interface Seat {
   _id: string;
@@ -17,7 +18,8 @@ export async function GET() {
       .toArray();
 
     return NextResponse.json(tickets);
-  } catch {
+  } catch (e) {
+    console.error(e);
     return NextResponse.json(
       { error: "Failed to fetch tickets" },
       { status: 500 }

@@ -11,7 +11,8 @@ export async function GET() {
       .toArray();
 
     return NextResponse.json(seats);
-  } catch {
+  } catch (e) {
+    console.error(e);
     return NextResponse.json(
       { error: "Failed to fetch seats" },
       { status: 500 }
