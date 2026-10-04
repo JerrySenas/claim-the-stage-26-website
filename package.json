@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
+    "mongodb": "^7.7.0",
     "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -22,5 +24,8 @@
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "mongodb@7.7.0": true
   }
 }
