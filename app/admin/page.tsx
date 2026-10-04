@@ -91,6 +91,8 @@ async function deleteAllTicketsAction() {
   revalidatePath("/admin");
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminPage() {
   const client = await clientPromise;
 
