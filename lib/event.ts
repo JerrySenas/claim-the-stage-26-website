@@ -8,8 +8,7 @@ export const EVENT = {
   venue: "Digital Campus Grounds",
   dateLabel: "November 16, 2026",
   shows: [
-    { name: "Basic Education", time: "3:00 PM", bookable: true },
-    { name: "College", time: "6:00 PM", bookable: false },
+    { name: "College", time: "6:00 PM", bookable: true },
   ],
 };
 
