@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
+import { getSeatMap } from "@/lib/seats";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const client = await clientPromise;
-    const db = client.db("seats");
-    const seats = await db
-      .collection("seats")
-      .find({})
-      .toArray();
-
-    return NextResponse.json(seats);
+    const { seats, live } = await getSeatMap();
+    return NextResponse.json(seats, {
+      headers: { "x-seat-data": live ? "live" : "static" },
+    });
   } catch (e) {
     console.error(e);
     return NextResponse.json(
@@ -19,4 +17,3 @@ export async function GET() {
     );
   }
 }
-
