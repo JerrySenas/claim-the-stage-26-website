@@ -5,7 +5,7 @@ export default function Navbar() {
     <nav className="bg-gray-800 p-4">
       <div className="container mx-auto flex justify-between items-center">
         <Link href="/" className="text-white text-xl font-bold">
-          MongoDB Tickets
+          Claim the Stage 2026 Tickets
         </Link>
         <div className="space-x-4">
           <Link

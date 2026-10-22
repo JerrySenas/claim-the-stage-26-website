@@ -132,6 +132,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
 
           <form onSubmit={onSubmit}>
             <input className="border rounded-lg text-black" type="text" name="name" placeholder="Name" />
+            <input className="border rounded-lg text-black" type="text" name="studentNum" placeholder="Student Number" />
             <input className="border rounded-lg text-black" type="email" name="email" placeholder="Email" />
             <button type="submit">Submit</button>
          </form>

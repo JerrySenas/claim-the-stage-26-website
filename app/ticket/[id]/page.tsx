@@ -29,15 +29,16 @@ export default async function TicketPage({
 
   return (
     <div>
-      <div>Ticket: {ticket._id.toString()}</div>
+      <div>Ticket ID: {ticket._id.toString()}</div>
       <div>Name: {ticket.name}</div>
+      <div>Student Number: {ticket.studentNum}</div>
       <div>Email: {ticket.email}</div>
       <div>Seats: {ticket.seats.join(", ")}</div>
       <div>Price: ₱{ticket.price}</div>
       <div>Status: {ticket.status}</div>
 
       <form action={onPay}>
-        <button type="submit">Pay</button>
+        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">Pay</button>
       </form>
     </div>
   );

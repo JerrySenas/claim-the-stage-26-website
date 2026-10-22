@@ -50,6 +50,7 @@ export async function POST(request: Request) {
 
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
+    const studentNum = formData.get("studentNum") as string;
     const seatsJSON = formData.get("seats") as string;
     const rawIDs = JSON.parse(seatsJSON);
     const seatIDs = rawIDs.map((id:string) => new ObjectId(id))
@@ -72,12 +73,16 @@ export async function POST(request: Request) {
     const seatCodes = selected_seats.map((seat) => seat.seatCode);
     
     const db = client.db("tickets");
+    const currentTime = new Date()
     const result = await db
         .collection("tickets")
         .insertOne({
             name: name,
             email: email,
+            studentNum: studentNum,
             seats: seatCodes,
+            createdOn: currentTime,
+            expiresAt: new Date(currentTime.getTime() + 10 * 60 * 1000),
             price: totalPrice,
             status: "pending"
         })
