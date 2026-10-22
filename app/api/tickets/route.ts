@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { console } from "inspector";
+import { grandTotal, type SeatDoc } from "@/lib/pricing";
 
 interface Seat {
   _id: string;
@@ -114,17 +115,13 @@ export async function POST(request: Request) {
     }
 
     const client = await clientPromise;
-    const seatDB = client.db("seats").collection("seats");
+    const seatDB = client.db("seats").collection<SeatDoc>("seats");
     const ticketDB = client.db("tickets").collection("tickets");
 
-    // Reserve only seats that are still available.
     const selectedSeats = await seatDB
-      .find({
-        seatCode: { $in: seatCodes },
-        status: "available",
-      })
+      .find({ seatCode: { $in: seatCodes }, status: "available" })
       .toArray();
-
+    
     if (selectedSeats.length !== seatCodes.length) {
       return NextResponse.json(
         { error: "Some seats are no longer available." },
@@ -132,9 +129,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Atomically claim each selected seat.
-    const claimedCodes: string[] = [];
+    // Price is computed while seats are still "available".
+    const totalPrice = grandTotal(selectedSeats, silver);
 
+    const claimedCodes: string[] = [];
     for (const seat of selectedSeats) {
       const result = await seatDB.updateOne(
         { _id: seat._id, status: "available" },
@@ -142,30 +140,17 @@ export async function POST(request: Request) {
       );
 
       if (result.modifiedCount !== 1) {
-        // Roll back the seats claimed by this request.
         await seatDB.updateMany(
-          {
-            seatCode: { $in: claimedCodes },
-            status: "held",
-          },
+          { seatCode: { $in: claimedCodes }, status: "held" },
           { $set: { status: "available" } }
         );
-
         return NextResponse.json(
           { error: "Some seats are no longer available." },
           { status: 409 }
         );
       }
-
       claimedCodes.push(seat.seatCode);
     }
-
-    const seatPrice = selectedSeats.reduce(
-      (total, seat) => total + seat.price,
-      0
-    );
-
-    const totalPrice = seatPrice + silver * SILVER_PRICE;
 
     try {
       const result = await ticketDB.insertOne({
@@ -183,26 +168,21 @@ export async function POST(request: Request) {
         { status: 201 }
       );
     } catch (error) {
-      // Release claimed seats if ticket creation fails.
       await seatDB.updateMany(
-        {
-          seatCode: { $in: claimedCodes },
-          status: "held",
-        },
+        { seatCode: { $in: claimedCodes }, status: "held" },
         { $set: { status: "available" } }
       );
-
       throw error;
     }
   } catch (error) {
     console.error("Failed to create ticket:", error);
-
     return NextResponse.json(
       { error: "Failed to create ticket." },
       { status: 500 }
     );
   }
 }
+
 
 export async function pay(id: string) {
   try {

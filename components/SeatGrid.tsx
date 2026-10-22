@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNo
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { GRID_COLS, GRID_ROWS, SILVER_AREA, SILVER_MAX, SILVER_PRICE, type Tier } from "@/lib/seatLayout";
+import { grandTotal, TIER_PRICE } from "@/lib/pricing";
 
 type SeatStatus = "available" | "held" | "occupied" | "reserved";
 
@@ -13,7 +14,6 @@ interface Seat {
   x: number;
   y: number;
   label: string;
-  price: number;
   status: SeatStatus;
 }
 
@@ -63,6 +63,7 @@ interface SeatButtonProps {
 
 const SeatButton = ({ seat, selected, onClick }: SeatButtonProps) => {
   const bookable = seat.status === "available";
+  const price = TIER_PRICE[seat.tier] ?? 0;
   const state =
     seat.status === "occupied"
       ? "Booked"
@@ -70,7 +71,7 @@ const SeatButton = ({ seat, selected, onClick }: SeatButtonProps) => {
         ? "Reserved by another buyer"
         : seat.status === "reserved"
           ? "Reserved (not for sale)"
-          : `₱${seat.price}`;
+          : `₱${price}`;
 
   return (
     <button
@@ -158,7 +159,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
     [seats, selected]
   );
   const totalPrice =
-    selectedSeats.reduce((total, seat) => total + seat.price, 0) + silver * SILVER_PRICE;
+    grandTotal(selectedSeats, silver);
 
   const remaining = useMemo(() => {
     const count = (tier: Tier) =>
