@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 interface Ticket {
   _id: string;
   name: string;
+  studentNum: string;
   email: string;
   seats: string[];
   price: number;

@@ -12,7 +12,7 @@ export default function Navbar() {
     <nav className="bg-gray-800 p-4">
       <div className="container mx-auto flex flex-wrap items-center justify-between gap-2">
         <Link href="/" className="text-white text-xl font-bold">
-          Claim the Stage
+          Claim the Stage 2026 Tickets
         </Link>
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {links.map((link) => (

@@ -51,7 +51,6 @@ const SILVER_MAX = 6000; // Set this to your actual configured limit.
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
-
     const name = formData.get("name");
     const email = formData.get("email");
     const seatsJSON = formData.get("seats");
@@ -128,6 +127,20 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
+    // const db = client.db("tickets");
+    // const currentTime = new Date()
+    // const result = await db
+    //     .collection("tickets")
+    //     .insertOne({
+    //         name: name,
+    //         email: email,
+    //         studentNum: studentNum,
+    //         seats: seatCodes,
+    //         createdOn: currentTime,
+    //         expiresAt: new Date(currentTime.getTime() + 10 * 60 * 1000),
+    //         price: totalPrice,
+    //         status: "pending"
+    //     })
 
     // Price is computed while seats are still "available".
     const totalPrice = grandTotal(selectedSeats, silver);
