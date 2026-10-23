@@ -1,0 +1,1062 @@
+diff --git a/app/api/seats/route.ts b/app/api/seats/route.ts
+index 46e2939..92f28ee 100644
+--- a/app/api/seats/route.ts
++++ b/app/api/seats/route.ts
+@@ -1,16 +1,11 @@
+ import { NextResponse } from "next/server";
+-import clientPromise from "@/lib/mongodb";
++import { getSeatMap } from "@/lib/seats";
++
++export const dynamic = "force-dynamic";
+ 
+ export async function GET() {
+   try {
+-    const client = await clientPromise;
+-    const db = client.db("seats");
+-    const seats = await db
+-      .collection("seats")
+-      .find({})
+-      .toArray();
+-
+-    return NextResponse.json(seats);
++    return NextResponse.json(await getSeatMap());
+   } catch (e) {
+     console.error(e);
+     return NextResponse.json(
+@@ -19,4 +14,3 @@ export async function GET() {
+     );
+   }
+ }
+-
+diff --git a/app/api/tickets/route.ts b/app/api/tickets/route.ts
+index 68c8de2..3f70bb3 100644
+--- a/app/api/tickets/route.ts
++++ b/app/api/tickets/route.ts
+@@ -1,12 +1,7 @@
+ import { NextResponse } from "next/server";
+ import clientPromise from "@/lib/mongodb";
+ import { ObjectId } from "mongodb";
+-import { console } from "inspector";
+-
+-interface Seat {
+-  _id: string;
+-  seatCode: string;
+-}
++import { holdSeats, releaseSeats } from "@/lib/seats";
+ 
+ export async function GET() {
+   try {
+@@ -48,41 +43,50 @@ export async function POST(request: Request) {
+   try {
+     const formData = await request.formData();
+ 
+-    const name = formData.get("name") as string;
+-    const email = formData.get("email") as string;
+-    const seatsJSON = formData.get("seats") as string;
+-    const rawIDs = JSON.parse(seatsJSON);
+-    const seatIDs = rawIDs.map((id:string) => new ObjectId(id))
++    const name = (formData.get("name") as string | null)?.trim();
++    const email = (formData.get("email") as string | null)?.trim();
++    if (!name || !email) {
++      return NextResponse.json(
++        { error: "Name and email are required." },
++        { status: 400 }
++      );
++    }
+ 
+-    const client = await clientPromise;
++    let requestedSeats: unknown;
++    try {
++      requestedSeats = JSON.parse(formData.get("seats") as string);
++    } catch {
++      requestedSeats = null;
++    }
+ 
+-    const seat_db = client.db("seats");
+-    await seat_db.collection("seats")
+-        .updateMany(
+-            {_id: {$in: seatIDs}},
+-            {$set: {status: "held"}}
+-        );
++    // Seats are validated against the venue layout and held atomically, so a
++    // seat that is already held or occupied can never be booked a second time.
++    const hold = await holdSeats(requestedSeats);
++    if (!hold.ok) {
++      return NextResponse.json(
++        { error: hold.error, unavailable: hold.unavailable },
++        { status: 409 }
++      );
++    }
+ 
+-    const selected_seats = await seat_db
+-        .collection("seats")
+-        .find({
+-            _id: { $in: seatIDs }
+-        }).toArray();
+-    const totalPrice = selected_seats.reduce((total, current) => total + current.price, 0);
+-    const seatCodes = selected_seats.map((seat) => seat.seatCode);
+-    
++    const client = await clientPromise;
+     const db = client.db("tickets");
+-    const result = await db
++    try {
++      const result = await db
+         .collection("tickets")
+         .insertOne({
+             name: name,
+             email: email,
+-            seats: seatCodes,
+-            price: totalPrice,
++            seats: hold.seatCodes,
++            price: hold.totalPrice,
+             status: "pending"
+         })
+ 
+-    return NextResponse.json({ success: true, id: result.insertedId }, {status: 201});
++      return NextResponse.json({ success: true, id: result.insertedId }, {status: 201});
++    } catch (e) {
++      await releaseSeats(hold.seatCodes);
++      throw e;
++    }
+   } catch(e) {
+     console.log(e)
+     return NextResponse.json(
+diff --git a/components/SeatGrid.tsx b/components/SeatGrid.tsx
+index 9a59bab..eae3388 100644
+--- a/components/SeatGrid.tsx
++++ b/components/SeatGrid.tsx
+@@ -1,40 +1,109 @@
+-"use client"; 
++"use client";
+ 
+-import { useEffect, useState, SubmitEvent } from "react";
++import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+ import { useRouter } from "next/navigation";
+-import { ObjectId } from "mongodb";
+ import clsx from "clsx";
++import { GRID_COLS, GRID_ROWS, type Tier } from "@/lib/seatLayout";
++
++type SeatStatus = "available" | "held" | "occupied" | "reserved";
+ 
+ interface Seat {
+-  _id: ObjectId;
+   seatCode: string;
+-  name: string;
++  tier: Tier;
++  x: number;
++  y: number;
++  label: string;
+   price: number;
+-  status: string;
+-  selected: boolean
++  status: SeatStatus;
+ }
+ 
+-interface SeatProps {
++const CELL = 32; // px, seat size
++const GAP = 4; // px
++
++const TIER_STYLE: Record<Tier, string> = {
++  PLATINUM: "bg-slate-200 text-slate-900 hover:bg-white",
++  GOLD: "bg-amber-400 text-amber-950 hover:bg-amber-300",
++  VIP: "bg-fuchsia-900 text-fuchsia-200",
++};
++
++const place = (x: number, y: number, w = 1, h = 1) => ({
++  gridColumn: `${x + 1} / span ${w}`,
++  gridRow: `${y + 1} / span ${h}`,
++});
++
++const Label = ({
++  x,
++  y,
++  w = 1,
++  className,
++  children,
++}: {
++  x: number;
++  y: number;
++  w?: number;
++  className?: string;
++  children: ReactNode;
++}) => (
++  <div
++    style={place(x, y, w)}
++    className={clsx(
++      "flex items-center justify-center text-[10px] font-bold uppercase tracking-widest",
++      className
++    )}
++  >
++    {children}
++  </div>
++);
++
++interface SeatButtonProps {
+   seat: Seat;
++  selected: boolean;
+   onClick: () => void;
+ }
+ 
+-const Seat = ({seat, onClick}: SeatProps) => (
++const SeatButton = ({ seat, selected, onClick }: SeatButtonProps) => {
++  const bookable = seat.status === "available";
++  const state =
++    seat.status === "occupied"
++      ? "Booked"
++      : seat.status === "held"
++        ? "Reserved by another buyer"
++        : seat.status === "reserved"
++          ? "Reserved (not for sale)"
++          : `₱${seat.price}`;
++
++  return (
+     <button
+       type="button"
++      disabled={!bookable}
+       onClick={onClick}
++      aria-pressed={selected}
++      aria-label={`${seat.tier} seat ${seat.label}, ${state}`}
++      title={`${seat.tier} ${seat.label} (${seat.seatCode}) · ${state}`}
++      style={place(seat.x, seat.y)}
+       className={clsx(
+-        "flex h-10 w-10 items-center justify-center rounded-md text-sm font-semibold",
++        "flex items-center justify-center rounded-md text-[9px] font-semibold leading-none transition-colors",
+         {
+-            "bg-blue-500": seat.selected,
+-            "bg-white text-black": !seat.selected && seat.status === "available",
+-            "bg-orange-500": !seat.selected && seat.status === "held",
+-            "bg-gray-500": !seat.selected && seat.status === "occupied"
++          "bg-blue-500 text-white ring-2 ring-blue-300": selected,
++          [TIER_STYLE[seat.tier]]: !selected && (bookable || seat.status === "reserved"),
++          "cursor-not-allowed bg-orange-500 text-orange-950":
++            !selected && seat.status === "held",
++          "cursor-not-allowed bg-neutral-700 text-neutral-500 line-through":
++            !selected && seat.status === "occupied",
++          "cursor-not-allowed opacity-60": seat.status === "reserved",
+         }
+       )}
+     >
+-        {seat.seatCode}
++      {seat.label}
+     </button>
++  );
++};
++
++const LegendItem = ({ className, children }: { className: string; children: ReactNode }) => (
++  <span className="flex items-center gap-2">
++    <span className={clsx("inline-block h-4 w-4 rounded", className)} />
++    {children}
++  </span>
+ );
+ 
+ interface SeatListProps {
+@@ -44,102 +113,191 @@ interface SeatListProps {
+ 
+ export default function SeatList({ endpoint, title }: SeatListProps) {
+   const [seats, setSeats] = useState<Seat[]>([]);
++  const [selected, setSelected] = useState<Set<string>>(new Set());
+   const [loading, setLoading] = useState(true);
++  const [submitting, setSubmitting] = useState(false);
+   const [message, setMessage] = useState("");
+-  const router = useRouter()
++  const router = useRouter();
+ 
+-  useEffect(() => {
+-    async function getSeats() {
+-      try {
+-        const response = await fetch(endpoint);
+-        if (!response.ok) {
+-          const message = `An error occurred: ${response.statusText}`;
+-          console.error(message);
+-          return;
+-        }
+-        const seats = await response.json();
+-        setSeats(seats.map((seat: Seat) => ({
+-            ...seat,
+-            selected: false,
+-        })));
+-      } catch (error) {
+-        console.error("Error fetching seats:", error);
+-      } finally {
+-        setLoading(false);
++  const loadSeats = useCallback(async () => {
++    try {
++      const response = await fetch(endpoint, { cache: "no-store" });
++      if (!response.ok) {
++        console.error(`An error occurred: ${response.statusText}`);
++        setMessage("Could not load the seat map. Please refresh the page.");
++        return;
+       }
++      const data: Seat[] = await response.json();
++      setSeats(data);
++      // Drop any selected seat that is no longer available.
++      setSelected((current) => {
++        const free = new Set(
++          data.filter((s) => s.status === "available").map((s) => s.seatCode)
++        );
++        return new Set([...current].filter((code) => free.has(code)));
++      });
++    } catch (error) {
++      console.error("Error fetching seats:", error);
++      setMessage("Could not load the seat map. Please refresh the page.");
++    } finally {
++      setLoading(false);
+     }
+-    getSeats();
+   }, [endpoint]);
+ 
+-  function getSelectedSeats() {return seats.filter((seat) => seat.selected)}
+-  function getTotalPrice() {return getSelectedSeats().reduce((total, seat) => total + seat.price, 0)}
+-
+-  function seatList() {
+-    return seats.map((seat) => {
+-      return <Seat
+-        seat={seat}
+-        key={seat._id.toString()}
+-        onClick={() => {
+-            if (seat.status !== "available") return;
+-
+-            setSeats((currentSeats) => 
+-            currentSeats.map((currentSeats) => 
+-                currentSeats._id.toString() === seat._id.toString() ? {...currentSeats, selected: !currentSeats.selected} : currentSeats)
+-          )
+-        }}
+-        />;
++  useEffect(() => {
++    loadSeats();
++  }, [loadSeats]);
++
++  const selectedSeats = useMemo(
++    () => seats.filter((seat) => selected.has(seat.seatCode)),
++    [seats, selected]
++  );
++  const totalPrice = selectedSeats.reduce((total, seat) => total + seat.price, 0);
++
++  const remaining = useMemo(() => {
++    const count = (tier: Tier) =>
++      seats.filter((s) => s.tier === tier && s.status === "available").length;
++    return { PLATINUM: count("PLATINUM"), GOLD: count("GOLD") };
++  }, [seats]);
++
++  function toggle(seat: Seat) {
++    if (seat.status !== "available") return;
++    setMessage("");
++    setSelected((current) => {
++      const next = new Set(current);
++      if (next.has(seat.seatCode)) next.delete(seat.seatCode);
++      else next.add(seat.seatCode);
++      return next;
+     });
+   }
+ 
+-  async function onSubmit(event:SubmitEvent<HTMLFormElement>) {
+-    event.preventDefault()
++  async function onSubmit(event: FormEvent<HTMLFormElement>) {
++    event.preventDefault();
++    if (selectedSeats.length === 0) {
++      setMessage("Please select at least one seat.");
++      return;
++    }
+ 
+-    const formData = new FormData(event.currentTarget)
+-    const seatCodes = getSelectedSeats().map((seat) => seat._id)
+-    formData.append('seats', JSON.stringify(seatCodes))
+-    const response = await fetch('/api/tickets', {
+-        method: 'POST',
+-        body: formData
+-    })
++    const formData = new FormData(event.currentTarget);
++    formData.append("seats", JSON.stringify(selectedSeats.map((seat) => seat.seatCode)));
+ 
+-    if (!response.ok) {
+-        console.error("Failed to create ticket.")
+-    }
++    setSubmitting(true);
++    try {
++      const response = await fetch("/api/tickets", { method: "POST", body: formData });
++      const data = await response.json();
+ 
+-    const data = await response.json();
+-    router.push(`/ticket/${data.id}`);
+-  }
++      if (!response.ok) {
++        if (response.status === 409) {
++          setMessage(
++            `${data.error ?? "Some seats are no longer available."} Seat map updated; please choose again.`
++          );
++          await loadSeats();
++        } else {
++          setMessage(data.error ?? "Failed to create ticket.");
++        }
++        return;
++      }
+ 
++      router.push(`/ticket/${data.id}`);
++    } catch (error) {
++      console.error(error);
++      setMessage("Failed to create ticket.");
++    } finally {
++      setSubmitting(false);
++    }
++  }
+ 
+   if (loading) {
+     return <div className="p-4">Loading...</div>;
+   }
+ 
++  const width = GRID_COLS * CELL + (GRID_COLS - 1) * GAP;
++
+   return (
+     <>
+       <h3 className="text-lg font-semibold p-4">{title}</h3>
+-      <div className="border rounded-lg overflow-hidden">
+-        <div className="relative w-full overflow-auto">
++      <div className="rounded-lg border bg-neutral-900 p-4 text-neutral-100">
++        <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2 text-xs">
++          <LegendItem className="bg-slate-200">Platinum ₱250 ({remaining.PLATINUM} left)</LegendItem>
++          <LegendItem className="bg-amber-400">Gold ₱150 ({remaining.GOLD} left)</LegendItem>
++          <LegendItem className="bg-fuchsia-900 opacity-60">VIP (reserved)</LegendItem>
++          <LegendItem className="bg-blue-500">Your selection</LegendItem>
++          <LegendItem className="bg-orange-500">On hold</LegendItem>
++          <LegendItem className="bg-neutral-700">Booked</LegendItem>
++        </div>
+ 
+-          <div className="grid grid-cols-5 gap-2">
+-            {seatList()}
+-          </div>
++        <div className="overflow-x-auto pb-2">
++          <div
++            className="mx-auto grid"
++            style={{
++              width,
++              gridTemplateColumns: `repeat(${GRID_COLS}, ${CELL}px)`,
++              gridTemplateRows: `repeat(${GRID_ROWS}, ${CELL}px)`,
++              gap: GAP,
++            }}
++          >
++            <Label x={6} y={0} w={17} className="rounded-md bg-neutral-700 text-sm text-neutral-200">
++              Stage
++            </Label>
++
++            <Label x={0} y={1} w={5} className="text-amber-400">Gold</Label>
++            <Label x={24} y={1} w={5} className="text-amber-400">Gold</Label>
+ 
+-          <p className={clsx(
+-            "text-red", {
+-            "hidden": message === "",
+-          })}>{message}</p>
++            <Label x={5} y={4} w={1} className="text-fuchsia-300">VIP</Label>
++            <Label x={5} y={8} w={1} className="text-slate-300">Plat.</Label>
++            <Label x={5} y={15} w={1} className="text-amber-400">Gold</Label>
+ 
+-          <form onSubmit={onSubmit}>
+-            <input className="border rounded-lg text-black" type="text" name="name" placeholder="Name" />
+-            <input className="border rounded-lg text-black" type="email" name="email" placeholder="Email" />
+-            <button type="submit">Submit</button>
+-         </form>
++            <Label x={11} y={11} className="text-neutral-400">Gate</Label>
++            <Label x={17} y={11} className="text-neutral-400">Gate</Label>
++            <Label x={11} y={18} className="text-neutral-400">Gate</Label>
++            <Label x={17} y={18} className="text-neutral-400">Gate</Label>
+ 
++            <Label
++              x={6}
++              y={19}
++              w={17}
++              className="rounded-md border border-dashed border-neutral-500 text-neutral-300"
++            >
++              Silver · ₱100 · Standing area
++            </Label>
++
++            {seats.map((seat) => (
++              <SeatButton
++                key={seat.seatCode}
++                seat={seat}
++                selected={selected.has(seat.seatCode)}
++                onClick={() => toggle(seat)}
++              />
++            ))}
++          </div>
+         </div>
++
++        <p className="mt-3 text-center text-xs text-neutral-400">
++          Seat numbers on the left and right Gold blocks count from the aisle side (1) outward.
++        </p>
++      </div>
++
++      <div className="mt-4 rounded-lg border p-4">
++        <p className="mb-3 font-semibold">
++          {selectedSeats.length === 0
++            ? "No seats selected"
++            : `${selectedSeats.map((s) => s.label).join(", ")} — ₱${totalPrice}`}
++        </p>
++
++        <p className={clsx("mb-3 text-red-500", { hidden: message === "" })}>{message}</p>
++
++        <form onSubmit={onSubmit} className="flex flex-wrap gap-2">
++          <input className="border rounded-lg px-2 py-1 text-black bg-white" type="text" name="name" placeholder="Name" required />
++          <input className="border rounded-lg px-2 py-1 text-black bg-white" type="email" name="email" placeholder="Email" required />
++          <button
++            type="submit"
++            disabled={submitting || selectedSeats.length === 0}
++            className="rounded-lg bg-blue-600 px-4 py-1 text-white disabled:opacity-50"
++          >
++            {submitting ? "Booking..." : "Submit"}
++          </button>
++        </form>
+       </div>
+     </>
+   );
+ }
+-
+-
+diff --git a/lib/seatLayout.ts b/lib/seatLayout.ts
+new file mode 100644
+index 0000000..b44ea40
+--- /dev/null
++++ b/lib/seatLayout.ts
+@@ -0,0 +1,382 @@
++/**
++ * Seat layout for "Battle of the Bands" (Basic Education), generated from the
++ * seating workbook (sheet "BOTB SEAT LAYOUT MORE SEATS", form responses of 2026-09/10).
++ *
++ * x / y are grid cells (1 cell = 1 seat). Seat codes match the workbook (e.g. PLA1, GOAO5).
++ * The right-hand Gold block rows K-O reuse the same codes as the centre Gold block
++ * in the workbook, so those 25 seats carry a "-R" suffix here to keep codes unique.
++ */
++
++export type Tier = "VIP" | "PLATINUM" | "GOLD";
++
++export interface LayoutSeat {
++  seatCode: string;
++  tier: Tier;
++  x: number;
++  y: number;
++  label: string;
++}
++
++export const GRID_COLS = 29;
++export const GRID_ROWS = 21;
++
++export const TIER_PRICE: Record<Tier, number> = { VIP: 0, PLATINUM: 250, GOLD: 150 };
++
++/** VIP seats are reserved and cannot be booked online. */
++export const BOOKABLE_TIERS: Tier[] = ["PLATINUM", "GOLD"];
++
++/** Seats already booked and paid (valid, payment-validated form responses). */
++export const BOOKED_SEATS: string[] = ["GOA1", "GOA3", "GOA4", "GOAJ1", "GOF1", "GOF2", "GOF3", "GOH1", "GOH5", "GOI1", "GOJ5", "GOP1", "GOS2", "GOT5", "PLA2", "PLA3", "PLA5", "PLB1", "PLB3", "PLD1", "PLE3", "PLF1", "PLF2", "PLG1", "PLH1", "PLH2", "PLH3", "PLH4", "PLH5", "PLI1", "PLI2", "PLJ1", "PLK1", "PLK2", "PLL1"];
++
++export const LAYOUT_SEATS: LayoutSeat[] = [
++  { seatCode: "GOAO5", tier: "GOLD", x: 0, y: 2, label: "AO5" },
++  { seatCode: "GOAO4", tier: "GOLD", x: 1, y: 2, label: "AO4" },
++  { seatCode: "GOAO3", tier: "GOLD", x: 2, y: 2, label: "AO3" },
++  { seatCode: "GOAO2", tier: "GOLD", x: 3, y: 2, label: "AO2" },
++  { seatCode: "GOAO1", tier: "GOLD", x: 4, y: 2, label: "AO1" },
++  { seatCode: "VIA1", tier: "VIP", x: 6, y: 2, label: "A1" },
++  { seatCode: "VIB1", tier: "VIP", x: 7, y: 2, label: "B1" },
++  { seatCode: "VIC1", tier: "VIP", x: 8, y: 2, label: "C1" },
++  { seatCode: "VID1", tier: "VIP", x: 9, y: 2, label: "D1" },
++  { seatCode: "VIE1", tier: "VIP", x: 10, y: 2, label: "E1" },
++  { seatCode: "VIF1", tier: "VIP", x: 12, y: 2, label: "F1" },
++  { seatCode: "VIG1", tier: "VIP", x: 13, y: 2, label: "G1" },
++  { seatCode: "VIH1", tier: "VIP", x: 14, y: 2, label: "H1" },
++  { seatCode: "VII1", tier: "VIP", x: 15, y: 2, label: "I1" },
++  { seatCode: "VIJ1", tier: "VIP", x: 16, y: 2, label: "J1" },
++  { seatCode: "VIK1", tier: "VIP", x: 18, y: 2, label: "K1" },
++  { seatCode: "VIL1", tier: "VIP", x: 19, y: 2, label: "L1" },
++  { seatCode: "VIM1", tier: "VIP", x: 20, y: 2, label: "M1" },
++  { seatCode: "VIN1", tier: "VIP", x: 21, y: 2, label: "N1" },
++  { seatCode: "VIO1", tier: "VIP", x: 22, y: 2, label: "O1" },
++  { seatCode: "GOZ1", tier: "GOLD", x: 24, y: 2, label: "Z1" },
++  { seatCode: "GOZ2", tier: "GOLD", x: 25, y: 2, label: "Z2" },
++  { seatCode: "GOZ3", tier: "GOLD", x: 26, y: 2, label: "Z3" },
++  { seatCode: "GOZ4", tier: "GOLD", x: 27, y: 2, label: "Z4" },
++  { seatCode: "GOZ5", tier: "GOLD", x: 28, y: 2, label: "Z5" },
++  { seatCode: "GOAN5", tier: "GOLD", x: 0, y: 3, label: "AN5" },
++  { seatCode: "GOAN4", tier: "GOLD", x: 1, y: 3, label: "AN4" },
++  { seatCode: "GOAN3", tier: "GOLD", x: 2, y: 3, label: "AN3" },
++  { seatCode: "GOAN2", tier: "GOLD", x: 3, y: 3, label: "AN2" },
++  { seatCode: "GOAN1", tier: "GOLD", x: 4, y: 3, label: "AN1" },
++  { seatCode: "GOY1", tier: "GOLD", x: 24, y: 3, label: "Y1" },
++  { seatCode: "GOY2", tier: "GOLD", x: 25, y: 3, label: "Y2" },
++  { seatCode: "GOY3", tier: "GOLD", x: 26, y: 3, label: "Y3" },
++  { seatCode: "GOY4", tier: "GOLD", x: 27, y: 3, label: "Y4" },
++  { seatCode: "GOY5", tier: "GOLD", x: 28, y: 3, label: "Y5" },
++  { seatCode: "GOAM5", tier: "GOLD", x: 0, y: 4, label: "AM5" },
++  { seatCode: "GOAM4", tier: "GOLD", x: 1, y: 4, label: "AM4" },
++  { seatCode: "GOAM3", tier: "GOLD", x: 2, y: 4, label: "AM3" },
++  { seatCode: "GOAM2", tier: "GOLD", x: 3, y: 4, label: "AM2" },
++  { seatCode: "GOAM1", tier: "GOLD", x: 4, y: 4, label: "AM1" },
++  { seatCode: "VIA2", tier: "VIP", x: 6, y: 3, label: "A2" },
++  { seatCode: "VIB2", tier: "VIP", x: 7, y: 3, label: "B2" },
++  { seatCode: "VIC2", tier: "VIP", x: 8, y: 3, label: "C2" },
++  { seatCode: "VID2", tier: "VIP", x: 9, y: 3, label: "D2" },
++  { seatCode: "VIE2", tier: "VIP", x: 10, y: 3, label: "E2" },
++  { seatCode: "VIF2", tier: "VIP", x: 12, y: 3, label: "F2" },
++  { seatCode: "VIG2", tier: "VIP", x: 13, y: 3, label: "G2" },
++  { seatCode: "VIH2", tier: "VIP", x: 14, y: 3, label: "H2" },
++  { seatCode: "VII2", tier: "VIP", x: 15, y: 3, label: "I2" },
++  { seatCode: "VIJ2", tier: "VIP", x: 16, y: 3, label: "J2" },
++  { seatCode: "VIK2", tier: "VIP", x: 18, y: 3, label: "K2" },
++  { seatCode: "VIL2", tier: "VIP", x: 19, y: 3, label: "L2" },
++  { seatCode: "VIM2", tier: "VIP", x: 20, y: 3, label: "M2" },
++  { seatCode: "VIN2", tier: "VIP", x: 21, y: 3, label: "N2" },
++  { seatCode: "VIO2", tier: "VIP", x: 22, y: 3, label: "O2" },
++  { seatCode: "GOX1", tier: "GOLD", x: 24, y: 4, label: "X1" },
++  { seatCode: "GOX2", tier: "GOLD", x: 25, y: 4, label: "X2" },
++  { seatCode: "GOX3", tier: "GOLD", x: 26, y: 4, label: "X3" },
++  { seatCode: "GOX4", tier: "GOLD", x: 27, y: 4, label: "X4" },
++  { seatCode: "GOX5", tier: "GOLD", x: 28, y: 4, label: "X5" },
++  { seatCode: "GOAL5", tier: "GOLD", x: 0, y: 5, label: "AL5" },
++  { seatCode: "GOAL4", tier: "GOLD", x: 1, y: 5, label: "AL4" },
++  { seatCode: "GOAL3", tier: "GOLD", x: 2, y: 5, label: "AL3" },
++  { seatCode: "GOAL2", tier: "GOLD", x: 3, y: 5, label: "AL2" },
++  { seatCode: "GOAL1", tier: "GOLD", x: 4, y: 5, label: "AL1" },
++  { seatCode: "GOW1", tier: "GOLD", x: 24, y: 5, label: "W1" },
++  { seatCode: "GOW2", tier: "GOLD", x: 25, y: 5, label: "W2" },
++  { seatCode: "GOW3", tier: "GOLD", x: 26, y: 5, label: "W3" },
++  { seatCode: "GOW4", tier: "GOLD", x: 27, y: 5, label: "W4" },
++  { seatCode: "GOW5", tier: "GOLD", x: 28, y: 5, label: "W5" },
++  { seatCode: "GOAK5", tier: "GOLD", x: 0, y: 6, label: "AK5" },
++  { seatCode: "GOAK4", tier: "GOLD", x: 1, y: 6, label: "AK4" },
++  { seatCode: "GOAK3", tier: "GOLD", x: 2, y: 6, label: "AK3" },
++  { seatCode: "GOAK2", tier: "GOLD", x: 3, y: 6, label: "AK2" },
++  { seatCode: "GOAK1", tier: "GOLD", x: 4, y: 6, label: "AK1" },
++  { seatCode: "VIA3", tier: "VIP", x: 6, y: 4, label: "A3" },
++  { seatCode: "VIB3", tier: "VIP", x: 7, y: 4, label: "B3" },
++  { seatCode: "VIC3", tier: "VIP", x: 8, y: 4, label: "C3" },
++  { seatCode: "VID3", tier: "VIP", x: 9, y: 4, label: "D3" },
++  { seatCode: "VIE3", tier: "VIP", x: 10, y: 4, label: "E3" },
++  { seatCode: "VIF3", tier: "VIP", x: 12, y: 4, label: "F3" },
++  { seatCode: "VIG3", tier: "VIP", x: 13, y: 4, label: "G3" },
++  { seatCode: "VIH3", tier: "VIP", x: 14, y: 4, label: "H3" },
++  { seatCode: "VII3", tier: "VIP", x: 15, y: 4, label: "I3" },
++  { seatCode: "VIJ3", tier: "VIP", x: 16, y: 4, label: "J3" },
++  { seatCode: "VIK3", tier: "VIP", x: 18, y: 4, label: "K3" },
++  { seatCode: "VIL3", tier: "VIP", x: 19, y: 4, label: "L3" },
++  { seatCode: "VIM3", tier: "VIP", x: 20, y: 4, label: "M3" },
++  { seatCode: "VIN3", tier: "VIP", x: 21, y: 4, label: "N3" },
++  { seatCode: "VIO3", tier: "VIP", x: 22, y: 4, label: "O3" },
++  { seatCode: "GOV1", tier: "GOLD", x: 24, y: 6, label: "V1" },
++  { seatCode: "GOV2", tier: "GOLD", x: 25, y: 6, label: "V2" },
++  { seatCode: "GOV3", tier: "GOLD", x: 26, y: 6, label: "V3" },
++  { seatCode: "GOV4", tier: "GOLD", x: 27, y: 6, label: "V4" },
++  { seatCode: "GOV5", tier: "GOLD", x: 28, y: 6, label: "V5" },
++  { seatCode: "GOU1", tier: "GOLD", x: 24, y: 7, label: "U1" },
++  { seatCode: "GOU2", tier: "GOLD", x: 25, y: 7, label: "U2" },
++  { seatCode: "GOU3", tier: "GOLD", x: 26, y: 7, label: "U3" },
++  { seatCode: "GOU4", tier: "GOLD", x: 27, y: 7, label: "U4" },
++  { seatCode: "GOU5", tier: "GOLD", x: 28, y: 7, label: "U5" },
++  { seatCode: "GOAJ5", tier: "GOLD", x: 0, y: 8, label: "AJ5" },
++  { seatCode: "GOAJ4", tier: "GOLD", x: 1, y: 8, label: "AJ4" },
++  { seatCode: "GOAJ3", tier: "GOLD", x: 2, y: 8, label: "AJ3" },
++  { seatCode: "GOAJ2", tier: "GOLD", x: 3, y: 8, label: "AJ2" },
++  { seatCode: "GOAJ1", tier: "GOLD", x: 4, y: 8, label: "AJ1" },
++  { seatCode: "GOAI5", tier: "GOLD", x: 0, y: 9, label: "AI5" },
++  { seatCode: "GOAI4", tier: "GOLD", x: 1, y: 9, label: "AI4" },
++  { seatCode: "GOAI3", tier: "GOLD", x: 2, y: 9, label: "AI3" },
++  { seatCode: "GOAI2", tier: "GOLD", x: 3, y: 9, label: "AI2" },
++  { seatCode: "GOAI1", tier: "GOLD", x: 4, y: 9, label: "AI1" },
++  { seatCode: "PLA1", tier: "PLATINUM", x: 6, y: 6, label: "A1" },
++  { seatCode: "PLB1", tier: "PLATINUM", x: 7, y: 6, label: "B1" },
++  { seatCode: "PLC1", tier: "PLATINUM", x: 8, y: 6, label: "C1" },
++  { seatCode: "PLD1", tier: "PLATINUM", x: 9, y: 6, label: "D1" },
++  { seatCode: "PLE1", tier: "PLATINUM", x: 10, y: 6, label: "E1" },
++  { seatCode: "PLF1", tier: "PLATINUM", x: 12, y: 6, label: "F1" },
++  { seatCode: "PLG1", tier: "PLATINUM", x: 13, y: 6, label: "G1" },
++  { seatCode: "PLH1", tier: "PLATINUM", x: 14, y: 6, label: "H1" },
++  { seatCode: "PLI1", tier: "PLATINUM", x: 15, y: 6, label: "I1" },
++  { seatCode: "PLJ1", tier: "PLATINUM", x: 16, y: 6, label: "J1" },
++  { seatCode: "PLK1", tier: "PLATINUM", x: 18, y: 6, label: "K1" },
++  { seatCode: "PLL1", tier: "PLATINUM", x: 19, y: 6, label: "L1" },
++  { seatCode: "PLM1", tier: "PLATINUM", x: 20, y: 6, label: "M1" },
++  { seatCode: "PLN1", tier: "PLATINUM", x: 21, y: 6, label: "N1" },
++  { seatCode: "PLO1", tier: "PLATINUM", x: 22, y: 6, label: "O1" },
++  { seatCode: "GOT1", tier: "GOLD", x: 24, y: 9, label: "T1" },
++  { seatCode: "GOT2", tier: "GOLD", x: 25, y: 9, label: "T2" },
++  { seatCode: "GOT3", tier: "GOLD", x: 26, y: 9, label: "T3" },
++  { seatCode: "GOT4", tier: "GOLD", x: 27, y: 9, label: "T4" },
++  { seatCode: "GOT5", tier: "GOLD", x: 28, y: 9, label: "T5" },
++  { seatCode: "GOAH5", tier: "GOLD", x: 0, y: 10, label: "AH5" },
++  { seatCode: "GOAH4", tier: "GOLD", x: 1, y: 10, label: "AH4" },
++  { seatCode: "GOAH3", tier: "GOLD", x: 2, y: 10, label: "AH3" },
++  { seatCode: "GOAH2", tier: "GOLD", x: 3, y: 10, label: "AH2" },
++  { seatCode: "GOAH1", tier: "GOLD", x: 4, y: 10, label: "AH1" },
++  { seatCode: "GOS1", tier: "GOLD", x: 24, y: 10, label: "S1" },
++  { seatCode: "GOS2", tier: "GOLD", x: 25, y: 10, label: "S2" },
++  { seatCode: "GOS3", tier: "GOLD", x: 26, y: 10, label: "S3" },
++  { seatCode: "GOS4", tier: "GOLD", x: 27, y: 10, label: "S4" },
++  { seatCode: "GOS5", tier: "GOLD", x: 28, y: 10, label: "S5" },
++  { seatCode: "GOAG5", tier: "GOLD", x: 0, y: 11, label: "AG5" },
++  { seatCode: "GOAG4", tier: "GOLD", x: 1, y: 11, label: "AG4" },
++  { seatCode: "GOAG3", tier: "GOLD", x: 2, y: 11, label: "AG3" },
++  { seatCode: "GOAG2", tier: "GOLD", x: 3, y: 11, label: "AG2" },
++  { seatCode: "GOAG1", tier: "GOLD", x: 4, y: 11, label: "AG1" },
++  { seatCode: "PLA2", tier: "PLATINUM", x: 6, y: 7, label: "A2" },
++  { seatCode: "PLB2", tier: "PLATINUM", x: 7, y: 7, label: "B2" },
++  { seatCode: "PLC2", tier: "PLATINUM", x: 8, y: 7, label: "C2" },
++  { seatCode: "PLD2", tier: "PLATINUM", x: 9, y: 7, label: "D2" },
++  { seatCode: "PLE2", tier: "PLATINUM", x: 10, y: 7, label: "E2" },
++  { seatCode: "PLF2", tier: "PLATINUM", x: 12, y: 7, label: "F2" },
++  { seatCode: "PLG2", tier: "PLATINUM", x: 13, y: 7, label: "G2" },
++  { seatCode: "PLH2", tier: "PLATINUM", x: 14, y: 7, label: "H2" },
++  { seatCode: "PLI2", tier: "PLATINUM", x: 15, y: 7, label: "I2" },
++  { seatCode: "PLJ2", tier: "PLATINUM", x: 16, y: 7, label: "J2" },
++  { seatCode: "PLK2", tier: "PLATINUM", x: 18, y: 7, label: "K2" },
++  { seatCode: "PLL2", tier: "PLATINUM", x: 19, y: 7, label: "L2" },
++  { seatCode: "PLM2", tier: "PLATINUM", x: 20, y: 7, label: "M2" },
++  { seatCode: "PLN2", tier: "PLATINUM", x: 21, y: 7, label: "N2" },
++  { seatCode: "PLO2", tier: "PLATINUM", x: 22, y: 7, label: "O2" },
++  { seatCode: "GOR1", tier: "GOLD", x: 24, y: 11, label: "R1" },
++  { seatCode: "GOR2", tier: "GOLD", x: 25, y: 11, label: "R2" },
++  { seatCode: "GOR3", tier: "GOLD", x: 26, y: 11, label: "R3" },
++  { seatCode: "GOR4", tier: "GOLD", x: 27, y: 11, label: "R4" },
++  { seatCode: "GOR5", tier: "GOLD", x: 28, y: 11, label: "R5" },
++  { seatCode: "GOAF5", tier: "GOLD", x: 0, y: 12, label: "AF5" },
++  { seatCode: "GOAF4", tier: "GOLD", x: 1, y: 12, label: "AF4" },
++  { seatCode: "GOAF3", tier: "GOLD", x: 2, y: 12, label: "AF3" },
++  { seatCode: "GOAF2", tier: "GOLD", x: 3, y: 12, label: "AF2" },
++  { seatCode: "GOAF1", tier: "GOLD", x: 4, y: 12, label: "AF1" },
++  { seatCode: "GOQ1", tier: "GOLD", x: 24, y: 12, label: "Q1" },
++  { seatCode: "GOQ2", tier: "GOLD", x: 25, y: 12, label: "Q2" },
++  { seatCode: "GOQ3", tier: "GOLD", x: 26, y: 12, label: "Q3" },
++  { seatCode: "GOQ4", tier: "GOLD", x: 27, y: 12, label: "Q4" },
++  { seatCode: "GOQ5", tier: "GOLD", x: 28, y: 12, label: "Q5" },
++  { seatCode: "PLA3", tier: "PLATINUM", x: 6, y: 8, label: "A3" },
++  { seatCode: "PLB3", tier: "PLATINUM", x: 7, y: 8, label: "B3" },
++  { seatCode: "PLC3", tier: "PLATINUM", x: 8, y: 8, label: "C3" },
++  { seatCode: "PLD3", tier: "PLATINUM", x: 9, y: 8, label: "D3" },
++  { seatCode: "PLE3", tier: "PLATINUM", x: 10, y: 8, label: "E3" },
++  { seatCode: "PLF3", tier: "PLATINUM", x: 12, y: 8, label: "F3" },
++  { seatCode: "PLG3", tier: "PLATINUM", x: 13, y: 8, label: "G3" },
++  { seatCode: "PLH3", tier: "PLATINUM", x: 14, y: 8, label: "H3" },
++  { seatCode: "PLI3", tier: "PLATINUM", x: 15, y: 8, label: "I3" },
++  { seatCode: "PLJ3", tier: "PLATINUM", x: 16, y: 8, label: "J3" },
++  { seatCode: "PLK3", tier: "PLATINUM", x: 18, y: 8, label: "K3" },
++  { seatCode: "PLL3", tier: "PLATINUM", x: 19, y: 8, label: "L3" },
++  { seatCode: "PLM3", tier: "PLATINUM", x: 20, y: 8, label: "M3" },
++  { seatCode: "PLN3", tier: "PLATINUM", x: 21, y: 8, label: "N3" },
++  { seatCode: "PLO3", tier: "PLATINUM", x: 22, y: 8, label: "O3" },
++  { seatCode: "GOP1", tier: "GOLD", x: 24, y: 13, label: "P1" },
++  { seatCode: "GOP2", tier: "GOLD", x: 25, y: 13, label: "P2" },
++  { seatCode: "GOP3", tier: "GOLD", x: 26, y: 13, label: "P3" },
++  { seatCode: "GOP4", tier: "GOLD", x: 27, y: 13, label: "P4" },
++  { seatCode: "GOP5", tier: "GOLD", x: 28, y: 13, label: "P5" },
++  { seatCode: "GOAE5", tier: "GOLD", x: 0, y: 14, label: "AE5" },
++  { seatCode: "GOAE4", tier: "GOLD", x: 1, y: 14, label: "AE4" },
++  { seatCode: "GOAE3", tier: "GOLD", x: 2, y: 14, label: "AE3" },
++  { seatCode: "GOAE2", tier: "GOLD", x: 3, y: 14, label: "AE2" },
++  { seatCode: "GOAE1", tier: "GOLD", x: 4, y: 14, label: "AE1" },
++  { seatCode: "GOAD5", tier: "GOLD", x: 0, y: 15, label: "AD5" },
++  { seatCode: "GOAD4", tier: "GOLD", x: 1, y: 15, label: "AD4" },
++  { seatCode: "GOAD3", tier: "GOLD", x: 2, y: 15, label: "AD3" },
++  { seatCode: "GOAD2", tier: "GOLD", x: 3, y: 15, label: "AD2" },
++  { seatCode: "GOAD1", tier: "GOLD", x: 4, y: 15, label: "AD1" },
++  { seatCode: "PLA4", tier: "PLATINUM", x: 6, y: 9, label: "A4" },
++  { seatCode: "PLB4", tier: "PLATINUM", x: 7, y: 9, label: "B4" },
++  { seatCode: "PLC4", tier: "PLATINUM", x: 8, y: 9, label: "C4" },
++  { seatCode: "PLD4", tier: "PLATINUM", x: 9, y: 9, label: "D4" },
++  { seatCode: "PLE4", tier: "PLATINUM", x: 10, y: 9, label: "E4" },
++  { seatCode: "PLF4", tier: "PLATINUM", x: 12, y: 9, label: "F4" },
++  { seatCode: "PLG4", tier: "PLATINUM", x: 13, y: 9, label: "G4" },
++  { seatCode: "PLH4", tier: "PLATINUM", x: 14, y: 9, label: "H4" },
++  { seatCode: "PLI4", tier: "PLATINUM", x: 15, y: 9, label: "I4" },
++  { seatCode: "PLJ4", tier: "PLATINUM", x: 16, y: 9, label: "J4" },
++  { seatCode: "PLK4", tier: "PLATINUM", x: 18, y: 9, label: "K4" },
++  { seatCode: "PLL4", tier: "PLATINUM", x: 19, y: 9, label: "L4" },
++  { seatCode: "PLM4", tier: "PLATINUM", x: 20, y: 9, label: "M4" },
++  { seatCode: "PLN4", tier: "PLATINUM", x: 21, y: 9, label: "N4" },
++  { seatCode: "PLO4", tier: "PLATINUM", x: 22, y: 9, label: "O4" },
++  { seatCode: "GOO1-R", tier: "GOLD", x: 24, y: 15, label: "O1-R" },
++  { seatCode: "GOO2-R", tier: "GOLD", x: 25, y: 15, label: "O2-R" },
++  { seatCode: "GOO3-R", tier: "GOLD", x: 26, y: 15, label: "O3-R" },
++  { seatCode: "GOO4-R", tier: "GOLD", x: 27, y: 15, label: "O4-R" },
++  { seatCode: "GOO5-R", tier: "GOLD", x: 28, y: 15, label: "O5-R" },
++  { seatCode: "GOAC5", tier: "GOLD", x: 0, y: 16, label: "AC5" },
++  { seatCode: "GOAC4", tier: "GOLD", x: 1, y: 16, label: "AC4" },
++  { seatCode: "GOAC3", tier: "GOLD", x: 2, y: 16, label: "AC3" },
++  { seatCode: "GOAC2", tier: "GOLD", x: 3, y: 16, label: "AC2" },
++  { seatCode: "GOAC1", tier: "GOLD", x: 4, y: 16, label: "AC1" },
++  { seatCode: "GON1-R", tier: "GOLD", x: 24, y: 16, label: "N1-R" },
++  { seatCode: "GON2-R", tier: "GOLD", x: 25, y: 16, label: "N2-R" },
++  { seatCode: "GON3-R", tier: "GOLD", x: 26, y: 16, label: "N3-R" },
++  { seatCode: "GON4-R", tier: "GOLD", x: 27, y: 16, label: "N4-R" },
++  { seatCode: "GON5-R", tier: "GOLD", x: 28, y: 16, label: "N5-R" },
++  { seatCode: "GOAB5", tier: "GOLD", x: 0, y: 17, label: "AB5" },
++  { seatCode: "GOAB4", tier: "GOLD", x: 1, y: 17, label: "AB4" },
++  { seatCode: "GOAB3", tier: "GOLD", x: 2, y: 17, label: "AB3" },
++  { seatCode: "GOAB2", tier: "GOLD", x: 3, y: 17, label: "AB2" },
++  { seatCode: "GOAB1", tier: "GOLD", x: 4, y: 17, label: "AB1" },
++  { seatCode: "PLA5", tier: "PLATINUM", x: 6, y: 10, label: "A5" },
++  { seatCode: "PLB5", tier: "PLATINUM", x: 7, y: 10, label: "B5" },
++  { seatCode: "PLC5", tier: "PLATINUM", x: 8, y: 10, label: "C5" },
++  { seatCode: "PLD5", tier: "PLATINUM", x: 9, y: 10, label: "D5" },
++  { seatCode: "PLE5", tier: "PLATINUM", x: 10, y: 10, label: "E5" },
++  { seatCode: "PLF5", tier: "PLATINUM", x: 12, y: 10, label: "F5" },
++  { seatCode: "PLG5", tier: "PLATINUM", x: 13, y: 10, label: "G5" },
++  { seatCode: "PLH5", tier: "PLATINUM", x: 14, y: 10, label: "H5" },
++  { seatCode: "PLI5", tier: "PLATINUM", x: 15, y: 10, label: "I5" },
++  { seatCode: "PLJ5", tier: "PLATINUM", x: 16, y: 10, label: "J5" },
++  { seatCode: "PLK5", tier: "PLATINUM", x: 18, y: 10, label: "K5" },
++  { seatCode: "PLL5", tier: "PLATINUM", x: 19, y: 10, label: "L5" },
++  { seatCode: "PLM5", tier: "PLATINUM", x: 20, y: 10, label: "M5" },
++  { seatCode: "PLN5", tier: "PLATINUM", x: 21, y: 10, label: "N5" },
++  { seatCode: "PLO5", tier: "PLATINUM", x: 22, y: 10, label: "O5" },
++  { seatCode: "GOM1-R", tier: "GOLD", x: 24, y: 17, label: "M1-R" },
++  { seatCode: "GOM2-R", tier: "GOLD", x: 25, y: 17, label: "M2-R" },
++  { seatCode: "GOM3-R", tier: "GOLD", x: 26, y: 17, label: "M3-R" },
++  { seatCode: "GOM4-R", tier: "GOLD", x: 27, y: 17, label: "M4-R" },
++  { seatCode: "GOM5-R", tier: "GOLD", x: 28, y: 17, label: "M5-R" },
++  { seatCode: "GOAA5", tier: "GOLD", x: 0, y: 18, label: "AA5" },
++  { seatCode: "GOAA4", tier: "GOLD", x: 1, y: 18, label: "AA4" },
++  { seatCode: "GOAA3", tier: "GOLD", x: 2, y: 18, label: "AA3" },
++  { seatCode: "GOAA2", tier: "GOLD", x: 3, y: 18, label: "AA2" },
++  { seatCode: "GOAA1", tier: "GOLD", x: 4, y: 18, label: "AA1" },
++  { seatCode: "GOL1-R", tier: "GOLD", x: 24, y: 18, label: "L1-R" },
++  { seatCode: "GOL2-R", tier: "GOLD", x: 25, y: 18, label: "L2-R" },
++  { seatCode: "GOL3-R", tier: "GOLD", x: 26, y: 18, label: "L3-R" },
++  { seatCode: "GOL4-R", tier: "GOLD", x: 27, y: 18, label: "L4-R" },
++  { seatCode: "GOL5-R", tier: "GOLD", x: 28, y: 18, label: "L5-R" },
++  { seatCode: "GOK1-R", tier: "GOLD", x: 24, y: 19, label: "K1-R" },
++  { seatCode: "GOK2-R", tier: "GOLD", x: 25, y: 19, label: "K2-R" },
++  { seatCode: "GOK3-R", tier: "GOLD", x: 26, y: 19, label: "K3-R" },
++  { seatCode: "GOK4-R", tier: "GOLD", x: 27, y: 19, label: "K4-R" },
++  { seatCode: "GOK5-R", tier: "GOLD", x: 28, y: 19, label: "K5-R" },
++  { seatCode: "GOA1", tier: "GOLD", x: 6, y: 13, label: "A1" },
++  { seatCode: "GOB1", tier: "GOLD", x: 7, y: 13, label: "B1" },
++  { seatCode: "GOC1", tier: "GOLD", x: 8, y: 13, label: "C1" },
++  { seatCode: "GOD1", tier: "GOLD", x: 9, y: 13, label: "D1" },
++  { seatCode: "GOE1", tier: "GOLD", x: 10, y: 13, label: "E1" },
++  { seatCode: "GOF1", tier: "GOLD", x: 12, y: 13, label: "F1" },
++  { seatCode: "GOG1", tier: "GOLD", x: 13, y: 13, label: "G1" },
++  { seatCode: "GOH1", tier: "GOLD", x: 14, y: 13, label: "H1" },
++  { seatCode: "GOI1", tier: "GOLD", x: 15, y: 13, label: "I1" },
++  { seatCode: "GOJ1", tier: "GOLD", x: 16, y: 13, label: "J1" },
++  { seatCode: "GOK1", tier: "GOLD", x: 18, y: 13, label: "K1" },
++  { seatCode: "GOL1", tier: "GOLD", x: 19, y: 13, label: "L1" },
++  { seatCode: "GOM1", tier: "GOLD", x: 20, y: 13, label: "M1" },
++  { seatCode: "GON1", tier: "GOLD", x: 21, y: 13, label: "N1" },
++  { seatCode: "GOO1", tier: "GOLD", x: 22, y: 13, label: "O1" },
++  { seatCode: "GOA2", tier: "GOLD", x: 6, y: 14, label: "A2" },
++  { seatCode: "GOB2", tier: "GOLD", x: 7, y: 14, label: "B2" },
++  { seatCode: "GOC2", tier: "GOLD", x: 8, y: 14, label: "C2" },
++  { seatCode: "GOD2", tier: "GOLD", x: 9, y: 14, label: "D2" },
++  { seatCode: "GOE2", tier: "GOLD", x: 10, y: 14, label: "E2" },
++  { seatCode: "GOF2", tier: "GOLD", x: 12, y: 14, label: "F2" },
++  { seatCode: "GOG2", tier: "GOLD", x: 13, y: 14, label: "G2" },
++  { seatCode: "GOH2", tier: "GOLD", x: 14, y: 14, label: "H2" },
++  { seatCode: "GOI2", tier: "GOLD", x: 15, y: 14, label: "I2" },
++  { seatCode: "GOJ2", tier: "GOLD", x: 16, y: 14, label: "J2" },
++  { seatCode: "GOK2", tier: "GOLD", x: 18, y: 14, label: "K2" },
++  { seatCode: "GOL2", tier: "GOLD", x: 19, y: 14, label: "L2" },
++  { seatCode: "GOM2", tier: "GOLD", x: 20, y: 14, label: "M2" },
++  { seatCode: "GON2", tier: "GOLD", x: 21, y: 14, label: "N2" },
++  { seatCode: "GOO2", tier: "GOLD", x: 22, y: 14, label: "O2" },
++  { seatCode: "GOA3", tier: "GOLD", x: 6, y: 15, label: "A3" },
++  { seatCode: "GOB3", tier: "GOLD", x: 7, y: 15, label: "B3" },
++  { seatCode: "GOC3", tier: "GOLD", x: 8, y: 15, label: "C3" },
++  { seatCode: "GOD3", tier: "GOLD", x: 9, y: 15, label: "D3" },
++  { seatCode: "GOE3", tier: "GOLD", x: 10, y: 15, label: "E3" },
++  { seatCode: "GOF3", tier: "GOLD", x: 12, y: 15, label: "F3" },
++  { seatCode: "GOG3", tier: "GOLD", x: 13, y: 15, label: "G3" },
++  { seatCode: "GOH3", tier: "GOLD", x: 14, y: 15, label: "H3" },
++  { seatCode: "GOI3", tier: "GOLD", x: 15, y: 15, label: "I3" },
++  { seatCode: "GOJ3", tier: "GOLD", x: 16, y: 15, label: "J3" },
++  { seatCode: "GOK3", tier: "GOLD", x: 18, y: 15, label: "K3" },
++  { seatCode: "GOL3", tier: "GOLD", x: 19, y: 15, label: "L3" },
++  { seatCode: "GOM3", tier: "GOLD", x: 20, y: 15, label: "M3" },
++  { seatCode: "GON3", tier: "GOLD", x: 21, y: 15, label: "N3" },
++  { seatCode: "GOO3", tier: "GOLD", x: 22, y: 15, label: "O3" },
++  { seatCode: "GOA4", tier: "GOLD", x: 6, y: 16, label: "A4" },
++  { seatCode: "GOB4", tier: "GOLD", x: 7, y: 16, label: "B4" },
++  { seatCode: "GOC4", tier: "GOLD", x: 8, y: 16, label: "C4" },
++  { seatCode: "GOD4", tier: "GOLD", x: 9, y: 16, label: "D4" },
++  { seatCode: "GOE4", tier: "GOLD", x: 10, y: 16, label: "E4" },
++  { seatCode: "GOF4", tier: "GOLD", x: 12, y: 16, label: "F4" },
++  { seatCode: "GOG4", tier: "GOLD", x: 13, y: 16, label: "G4" },
++  { seatCode: "GOH4", tier: "GOLD", x: 14, y: 16, label: "H4" },
++  { seatCode: "GOI4", tier: "GOLD", x: 15, y: 16, label: "I4" },
++  { seatCode: "GOJ4", tier: "GOLD", x: 16, y: 16, label: "J4" },
++  { seatCode: "GOK4", tier: "GOLD", x: 18, y: 16, label: "K4" },
++  { seatCode: "GOL4", tier: "GOLD", x: 19, y: 16, label: "L4" },
++  { seatCode: "GOM4", tier: "GOLD", x: 20, y: 16, label: "M4" },
++  { seatCode: "GON4", tier: "GOLD", x: 21, y: 16, label: "N4" },
++  { seatCode: "GOO4", tier: "GOLD", x: 22, y: 16, label: "O4" },
++  { seatCode: "GOA5", tier: "GOLD", x: 6, y: 17, label: "A5" },
++  { seatCode: "GOB5", tier: "GOLD", x: 7, y: 17, label: "B5" },
++  { seatCode: "GOC5", tier: "GOLD", x: 8, y: 17, label: "C5" },
++  { seatCode: "GOD5", tier: "GOLD", x: 9, y: 17, label: "D5" },
++  { seatCode: "GOE5", tier: "GOLD", x: 10, y: 17, label: "E5" },
++  { seatCode: "GOF5", tier: "GOLD", x: 12, y: 17, label: "F5" },
++  { seatCode: "GOG5", tier: "GOLD", x: 13, y: 17, label: "G5" },
++  { seatCode: "GOH5", tier: "GOLD", x: 14, y: 17, label: "H5" },
++  { seatCode: "GOI5", tier: "GOLD", x: 15, y: 17, label: "I5" },
++  { seatCode: "GOJ5", tier: "GOLD", x: 16, y: 17, label: "J5" },
++  { seatCode: "GOK5", tier: "GOLD", x: 18, y: 17, label: "K5" },
++  { seatCode: "GOL5", tier: "GOLD", x: 19, y: 17, label: "L5" },
++  { seatCode: "GOM5", tier: "GOLD", x: 20, y: 17, label: "M5" },
++  { seatCode: "GON5", tier: "GOLD", x: 21, y: 17, label: "N5" },
++  { seatCode: "GOO5", tier: "GOLD", x: 22, y: 17, label: "O5" },
++];
+diff --git a/lib/seats.ts b/lib/seats.ts
+new file mode 100644
+index 0000000..edbcb40
+--- /dev/null
++++ b/lib/seats.ts
+@@ -0,0 +1,156 @@
++import clientPromise from "@/lib/mongodb";
++import {
++  BOOKABLE_TIERS,
++  BOOKED_SEATS,
++  LAYOUT_SEATS,
++  TIER_PRICE,
++  type LayoutSeat,
++  type Tier,
++} from "@/lib/seatLayout";
++
++export type SeatStatus = "available" | "held" | "occupied" | "reserved";
++
++export interface SeatView extends LayoutSeat {
++  price: number;
++  status: SeatStatus;
++}
++
++const layoutByCode = new Map<string, LayoutSeat>(
++  LAYOUT_SEATS.map((seat) => [seat.seatCode, seat])
++);
++const bookedSet = new Set(BOOKED_SEATS);
++
++export function getLayoutSeat(seatCode: string) {
++  return layoutByCode.get(seatCode);
++}
++
++export function isBookableTier(tier: Tier) {
++  return BOOKABLE_TIERS.includes(tier);
++}
++
++export async function seatsCollection() {
++  const client = await clientPromise;
++  return client.db("seats").collection("seats");
++}
++
++let indexReady: Promise<unknown> | undefined;
++/** Makes sure a seat code can only exist once in the database. */
++export function ensureSeatIndex() {
++  indexReady ??= seatsCollection()
++    .then((seats) => seats.createIndex({ seatCode: 1 }, { unique: true }))
++    .catch((e) => {
++      // e.g. old duplicate documents; booking still works, atomically per document
++      console.error("Could not create unique seatCode index", e);
++    });
++  return indexReady;
++}
++
++/**
++ * The seat map shown on the website: every seat of the venue layout, with its
++ * live status. Seats booked and paid before this system (BOOKED_SEATS) are
++ * always "occupied", whatever the database says.
++ */
++export async function getSeatMap(): Promise<SeatView[]> {
++  const seats = await seatsCollection();
++  const docs = await seats
++    .find({}, { projection: { seatCode: 1, status: 1 } })
++    .toArray();
++  const dbStatus = new Map<string, string>(
++    docs.map((doc) => [doc.seatCode as string, doc.status as string])
++  );
++
++  return LAYOUT_SEATS.map((seat) => {
++    let status: SeatStatus = "available";
++    if (!isBookableTier(seat.tier)) status = "reserved";
++    else if (bookedSet.has(seat.seatCode)) status = "occupied";
++    else if (dbStatus.get(seat.seatCode) === "occupied") status = "occupied";
++    else if (dbStatus.get(seat.seatCode) === "held") status = "held";
++
++    return { ...seat, price: TIER_PRICE[seat.tier], status };
++  });
++}
++
++export type HoldResult =
++  | { ok: true; seatCodes: string[]; totalPrice: number }
++  | { ok: false; error: string; unavailable: string[] };
++
++/**
++ * Atomically holds the given seats. Either every seat is held, or none is.
++ */
++export async function holdSeats(requested: unknown): Promise<HoldResult> {
++  if (
++    !Array.isArray(requested) ||
++    requested.length === 0 ||
++    requested.length > 10 ||
++    requested.some((code) => typeof code !== "string")
++  ) {
++    return { ok: false, error: "Select between 1 and 10 seats.", unavailable: [] };
++  }
++
++  const codes = [...new Set(requested as string[])];
++  const unavailable: string[] = [];
++  let totalPrice = 0;
++
++  for (const code of codes) {
++    const seat = getLayoutSeat(code);
++    if (!seat || !isBookableTier(seat.tier) || bookedSet.has(code)) {
++      unavailable.push(code);
++    } else {
++      totalPrice += TIER_PRICE[seat.tier];
++    }
++  }
++  if (unavailable.length > 0) {
++    return { ok: false, error: "Some seats are not available.", unavailable };
++  }
++
++  await ensureSeatIndex();
++  const seats = await seatsCollection();
++  const held: string[] = [];
++
++  for (const code of codes) {
++    const seat = getLayoutSeat(code)!;
++    // Create the seat document if this seat was never touched before.
++    await seats.updateOne(
++      { seatCode: code },
++      {
++        $setOnInsert: {
++          seatCode: code,
++          price: TIER_PRICE[seat.tier],
++          status: "available",
++        },
++      },
++      { upsert: true }
++    );
++    // Only succeeds if the seat is still free: this is what prevents double booking.
++    const result = await seats.updateOne(
++      { seatCode: code, status: "available" },
++      { $set: { status: "held" } }
++    );
++    if (result.modifiedCount === 1) held.push(code);
++    else unavailable.push(code);
++  }
++
++  if (unavailable.length > 0) {
++    if (held.length > 0) {
++      await seats.updateMany(
++        { seatCode: { $in: held }, status: "held" },
++        { $set: { status: "available" } }
++      );
++    }
++    return {
++      ok: false,
++      error: "Some seats were just taken by someone else.",
++      unavailable,
++    };
++  }
++
++  return { ok: true, seatCodes: codes, totalPrice };
++}
++
++export async function releaseSeats(seatCodes: string[]) {
++  const seats = await seatsCollection();
++  await seats.updateMany(
++    { seatCode: { $in: seatCodes }, status: "held" },
++    { $set: { status: "available" } }
++  );
++}
