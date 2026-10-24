@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { PayMongo } from "josu-paymongo";
 import { console } from "inspector";
 import { grandTotal, type SeatDoc } from "@/lib/pricing";
 
@@ -197,58 +198,49 @@ export async function POST(request: Request) {
 }
 
 
+const paymongo = PayMongo.getInstance({
+  secretKey: process.env.PAYMONGO_SECRET_KEY!,
+});
+
 export async function pay(id: string) {
-  try {
-    if (!ObjectId.isValid(id)) {
-      throw new Error("Invalid ticket ID");
-    }
-
-    const client = await clientPromise;
-
-    const ticketDB = client
-      .db("tickets")
-      .collection("tickets");
-
-    const seatDB = client
-      .db("seats")
-      .collection("seats");
-
-    const ticket = await ticketDB.findOneAndUpdate(
-      {
-        _id: new ObjectId(id),
-        status: "pending",
-      },
-      {
-        $set: {
-          status: "confirmed",
-        },
-      },
-      {
-        returnDocument: "after",
-      }
-    );
-
-    if (!ticket) {
-      throw new Error("Ticket not found or already confirmed");
-    }
-
-    await seatDB.updateMany(
-      {
-        seatCode: {
-          $in: ticket.seats,
-        },
-      },
-      {
-        $set: {
-          status: "occupied",
-        },
-      }
-    );
-
-    return ticket;
-  } catch (e) {
-    console.error(e);
-    throw e;
+  if (!ObjectId.isValid(id)) {
+    throw new Error("Invalid ticket ID");
   }
+
+  const client = await clientPromise;
+  const ticketDB = client.db("tickets").collection("tickets");
+
+  // 1. Fetch the pending ticket — do NOT confirm it yet
+  const ticket = await ticketDB.findOne({
+    _id: new ObjectId(id),
+    status: "pending",
+  });
+
+  if (!ticket) {
+    throw new Error("Ticket not found or already confirmed");
+  }
+
+  // 2. Create a Payment Intent with PayMongo
+  //    Amount must be in centavos (₱100 = 10000)
+  const intent = await paymongo.paymentIntents.create({
+    amount: ticket.price * 100,
+    currency: "PHP",
+    paymentMethodAllowed: ["card", "gcash", "paymaya"],
+    description: `Ticket ${id}`,
+    metadata: { ticketId: id },
+  });
+
+  // 3. Store the Payment Intent ID on the ticket for webhook lookup
+  await ticketDB.updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { paymentIntentId: intent.id } }
+  );
+
+  // 4. Return the client_key — the frontend needs this to attach a payment method
+  return {
+    ticketId: id,
+    clientKey: intent.attributes.client_key,
+    paymentIntentId: intent.id,
+  };
 }
 

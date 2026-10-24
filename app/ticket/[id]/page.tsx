@@ -1,6 +1,7 @@
-import { getById, pay } from "@/app/api/tickets/route";
+import { getById } from "@/app/api/tickets/route";
 import { ObjectId } from "mongodb";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import PayButton from "./PayButton";
 
 export default async function TicketPage({
   params,
@@ -9,37 +10,48 @@ export default async function TicketPage({
 }) {
   const { id } = await params;
 
-  if (!ObjectId.isValid(id)) {
-    notFound();
-  }
+  if (!ObjectId.isValid(id)) notFound();
 
   const ticket = await (await getById(id)).json();
 
-  if (!ticket) {
-    notFound();
-  }
-
-  async function onPay() {
-    "use server";
-
-    await pay(id);
-
-    redirect("/");
-  }
+  if (!ticket) notFound();
 
   return (
-    <div>
+    <div className="flex flex-col gap-2 p-4">
       <div>Ticket ID: {ticket._id.toString()}</div>
       <div>Name: {ticket.name}</div>
       <div>Student Number: {ticket.studentNum}</div>
       <div>Email: {ticket.email}</div>
       <div>Seats: {ticket.seats.join(", ")}</div>
       <div>Price: ₱{ticket.price}</div>
-      <div>Status: {ticket.status}</div>
+      <div>
+        Status:{" "}
+        <span
+          className={
+            ticket.status === "confirmed"
+              ? "text-green-600"
+              : ticket.status === "pending"
+                ? "text-yellow-600"
+                : "text-gray-500"
+          }
+        >
+          {ticket.status}
+        </span>
+      </div>
 
-      <form action={onPay}>
-        <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">Pay</button>
-      </form>
+      {ticket.status === "pending" && (
+        <PayButton
+          ticketId={ticket._id.toString()}
+          name={ticket.name}
+          email={ticket.email}
+        />
+      )}
+
+      {ticket.status === "confirmed" && (
+        <p className="text-sm text-green-600">
+          Payment confirmed. See you at the show!
+        </p>
+      )}
     </div>
   );
 }
