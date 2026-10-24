@@ -4,20 +4,39 @@ import { EVENT, TICKET_TYPES } from "@/lib/event";
 export default function Home() {
   return (
     <main className="container mx-auto space-y-6 p-4">
-      <section className="rounded-2xl bg-neutral-900 p-8 text-center text-neutral-100 sm:p-70">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400">
-          {EVENT.tagline}
-        </p>
-        <h1 className="mt-2 text-4xl font-bold sm:text-6xl">{EVENT.name}</h1>
-        <p className="mt-4 text-lg text-neutral-300">
-          {EVENT.dateLabel} · {EVENT.venue}
-        </p>
-        <Link
-          href="/book"
-          className="mt-8 inline-block rounded-lg bg-amber-400 px-6 py-3 font-semibold text-amber-950 hover:bg-amber-300"
-        >
-          Book tickets
-        </Link>
+      <section className="relative overflow-hidden rounded-2xl bg-neutral-900 p-8 text-center text-neutral-100 sm:p-12">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/hero.jpg"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25"
+        />
+        <div className="relative grid items-center gap-8 md:grid-cols-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/poster.jpg"
+            alt="Claim the Stage, Battle of the Bands 2026"
+            className="mx-auto w-full max-w-md rounded-xl md:max-w-none"
+          />
+
+          <div className="text-left">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400">
+              {EVENT.tagline}
+            </p>
+            <h1 className="mt-2 text-4xl font-bold sm:text-5xl">{EVENT.name}</h1>
+            <p className="mt-4 text-lg text-neutral-300">
+              {EVENT.dateLabel} · {EVENT.venue}
+            </p>
+            <p className="mt-4 max-w-prose text-neutral-300">{EVENT.description}</p>
+            <Link
+              href="/book"
+              className="mt-8 inline-block rounded-lg bg-amber-400 px-6 py-3 font-semibold text-amber-950 hover:bg-amber-300"
+            >
+              Book tickets
+            </Link>
+          </div>
+        </div>
       </section>
 
       <section className="rounded-2xl bg-neutral-900 p-6 text-neutral-100">
