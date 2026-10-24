@@ -145,6 +145,7 @@ export async function POST(request: Request) {
 
     // Price is computed while seats are still "available".
     const totalPrice = grandTotal(selectedSeats, silver);
+    const currentTime = new Date()
 
     const claimedCodes: string[] = [];
     for (const seat of selectedSeats) {
@@ -174,7 +175,8 @@ export async function POST(request: Request) {
         silver,
         price: totalPrice,
         status: "pending",
-        createdAt: new Date(),
+        createdAt: currentTime,
+        expiresAt: new Date(currentTime.getTime() + 10 * 60 * 1000),
       });
 
       return NextResponse.json(

@@ -24,9 +24,6 @@ export async function POST(request: Request) {
     return
   }
 
-  console.log(ticket._id)
-  console.log(ticket.price)
-
   // Verify amount and currency against your trusted ticket price.
   const expectedAmount = Math.round(ticket.price * 100);
 
@@ -43,7 +40,7 @@ export async function POST(request: Request) {
 
   const updated = await ticketDB.updateOne(
     { _id: ticket._id },
-    { $set: { status: "confirmed", paidAt: new Date() } }
+    { $set: { status: "confirmed", paidAt: new Date(), expiresAt: null } }
   );
 
   if (updated.modifiedCount === 1) {
