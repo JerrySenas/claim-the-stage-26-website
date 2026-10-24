@@ -1,6 +1,7 @@
 // app/api/paymongo/webhook/route.ts
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { ObjectId } from "mongodb";
 
 export async function POST(request: Request) {
   const event = await request.json();
@@ -12,28 +13,15 @@ export async function POST(request: Request) {
 
   const payment = attrs.data;
   const paymentAttrs = payment?.attributes;
-  const paymentIntentId = paymentAttrs?.payment_intent_id;
-
-  if (!paymentIntentId || paymentAttrs?.status !== "paid") {
-    console.error("[PayMongo] Missing intent ID or payment not paid");
-    return NextResponse.json(
-      { error: "Invalid payment payload" },
-      { status: 400 }
-    );
-  }
+  const ticket_id = paymentAttrs?.metadata?.ticket_id;
 
   const client = await clientPromise;
   const ticketDB = client.db("tickets").collection("tickets");
   const seatDB = client.db("seats").collection("seats");
 
-  const ticket = await ticketDB.findOne({
-    paymentIntentId,
-    status: "pending",
-  });
-
+  const ticket = await ticketDB.findOne({_id: new ObjectId(ticket_id)});
   if (!ticket) {
-    console.error("[PayMongo] No pending ticket for intent", paymentIntentId);
-    return NextResponse.json({ received: true });
+    return
   }
 
   // Verify amount and currency against your trusted ticket price.
@@ -51,7 +39,7 @@ export async function POST(request: Request) {
   }
 
   const updated = await ticketDB.updateOne(
-    { _id: ticket._id, status: "pending", paymentIntentId },
+    { _id: ticket._id },
     { $set: { status: "confirmed", paidAt: new Date() } }
   );
 
