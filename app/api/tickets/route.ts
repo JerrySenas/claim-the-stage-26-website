@@ -215,7 +215,7 @@ export async function pay(id: string) {
   const intent = await paymongo.paymentIntents.create({
     amount: ticket.price * 100, // PHP → centavos
     currency: "PHP",
-    paymentMethodAllowed: ["gcash"], // GCash only for now
+    paymentMethodAllowed: ["qrph"], // GCash only for now
     description: `Ticket ${id}`,
     metadata: { ticketId: id }, // critical for webhook lookup
   });
