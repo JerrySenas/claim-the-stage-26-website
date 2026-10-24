@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
@@ -17,13 +18,16 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 border-b border-neutral-800 bg-black">
       <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4">
-        <Link href="/" className="flex items-baseline gap-3">
-          <span className="text-lg font-semibold uppercase tracking-[0.25em] text-white">
-            Claim the Stage
-          </span>
-          <span className="text-xs uppercase tracking-[0.3em] text-neutral-500">
-            2026
-          </span>
+        <Link href="/" aria-label="Claim the Stage 2026 – Home" className="flex items-center">
+          <Image
+            src="/logo.png"
+            alt="Claim the Stage, Battle of the Bands 2026"
+            width={1400}
+            height={240}
+            unoptimized
+            priority
+            className="h-15 w-auto"
+          />
         </Link>
 
         <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
