@@ -6,7 +6,7 @@ import { PayMongo } from "josu-paymongo";
 import { createPaymentIntent as createPaymentIntentAction } from "./actions";
 
 const paymongo = new PayMongo({
-  publicKey: process.env.PAYMONGO_PUBLIC_KEY!,
+  publicKey: process.env.NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY,
 });
 
 type PayButtonProps = {
