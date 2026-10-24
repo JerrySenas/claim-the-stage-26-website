@@ -16,11 +16,23 @@ import { ObjectId } from "mongodb";
 
 export async function POST(request: Request) {
     const event = await request.json();
-    
-    console.log("[PayMongo] Webhook received:", {
-        eventId: event.data?.id,
-        eventType: event.data?.attributes?.type,
-    });
+  const attrs = event.data?.attributes;
+  const payment = attrs?.data;
+  const paymentAttrs = payment?.attributes;
+
+  console.log("[Webhook] Event type:", attrs?.type);
+  console.log("[Webhook] Payment ID:", payment?.id);
+  console.log(
+    "[Webhook] Payment Intent ID:",
+    paymentAttrs?.payment_intent_id
+  );
+  console.log("[Webhook] Payment status:", paymentAttrs?.status);
+  console.log("[Webhook] Currency:", paymentAttrs?.currency);
+  console.log("[Webhook] Amount:", paymentAttrs?.amount);
+  console.log(
+    "[Webhook] Metadata ticketId:",
+    paymentAttrs?.metadata?.ticketId
+  );
     
     if (event.data?.attributes?.type === "payment.paid") {
         console.log("[PayMongo] Payment paid event received");
