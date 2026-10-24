@@ -41,7 +41,7 @@ export default function Home() {
 
       <section className="rounded-2xl bg-neutral-900 p-6 text-neutral-100">
         <h2 className="mb-4 text-xl font-semibold">Showtimes</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-1">
           {EVENT.shows.map((show) => (
             <div key={show.name} className="rounded-lg border border-neutral-700 p-4">
               <p className="font-semibold">Battle of the Bands: {show.name}</p>
