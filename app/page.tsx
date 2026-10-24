@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { EVENT, TICKET_TYPES } from "@/lib/event";
 
