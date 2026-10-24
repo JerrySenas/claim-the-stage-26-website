@@ -197,48 +197,38 @@ export async function POST(request: Request) {
   }
 }
 
-
 const paymongo = PayMongo.getInstance({
   secretKey: process.env.PAYMONGO_SECRET_KEY!,
 });
 
 export async function pay(id: string) {
-  if (!ObjectId.isValid(id)) {
-    throw new Error("Invalid ticket ID");
-  }
+  if (!ObjectId.isValid(id)) throw new Error("Invalid ticket ID");
 
   const client = await clientPromise;
-  const ticketDB = client.db("tickets").collection("tickets");
+  const ticket = await client
+    .db("tickets")
+    .collection("tickets")
+    .findOne({ _id: new ObjectId(id), status: "pending" });
 
-  // 1. Fetch the pending ticket — do NOT confirm it yet
-  const ticket = await ticketDB.findOne({
-    _id: new ObjectId(id),
-    status: "pending",
-  });
+  if (!ticket) throw new Error("Ticket not found or already confirmed");
 
-  if (!ticket) {
-    throw new Error("Ticket not found or already confirmed");
-  }
-
-  // 2. Create a Payment Intent with PayMongo
-  //    Amount must be in centavos (₱100 = 10000)
   const intent = await paymongo.paymentIntents.create({
-    amount: ticket.price * 100,
+    amount: ticket.price * 100, // PHP → centavos
     currency: "PHP",
-    paymentMethodAllowed: ["card", "gcash", "paymaya"],
+    paymentMethodAllowed: ["gcash"], // GCash only for now
     description: `Ticket ${id}`,
-    metadata: { ticketId: id },
+    metadata: { ticketId: id }, // critical for webhook lookup
   });
 
-  // 3. Store the Payment Intent ID on the ticket for webhook lookup
-  await ticketDB.updateOne(
-    { _id: new ObjectId(id) },
-    { $set: { paymentIntentId: intent.id } }
-  );
+  await client
+    .db("tickets")
+    .collection("tickets")
+    .updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { paymentIntentId: intent.id } }
+    );
 
-  // 4. Return the client_key — the frontend needs this to attach a payment method
   return {
-    ticketId: id,
     clientKey: intent.attributes.client_key,
     paymentIntentId: intent.id,
   };
