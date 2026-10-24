@@ -53,9 +53,20 @@ export default function PayButton({
 
       // 4. QR Ph requires the customer to scan the QR code.
       if (attrs.status === "awaiting_next_action") {
-        const imageUrl = attrs.next_action?.code?.image_url;
+        const nextAction = attrs.next_action as unknown as {
+          code?: {
+            image_url?: string;
+          };
+        } | null;
+
+        const imageUrl = nextAction?.code?.image_url;
 
         if (!imageUrl) {
+          console.error(
+            "[QR Ph] Missing QR image URL in next_action",
+            attrs.next_action
+          );
+
           throw new Error("PayMongo did not return a QR code.");
         }
 
