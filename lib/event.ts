@@ -8,7 +8,7 @@ export const EVENT = {
   venue: "Digital Campus Grounds",
   dateLabel: "November 25, 2026",
   description:
-    "Claim the Stage is a night of live music where bands go head to head for the crowd. Grab a seat up front or stand with the crowd, and be there when the winners take the stage.",
+    "Welcome to a pioneered music competition organized within St. Dominic College of Asia, providing a local concert for different student bands to compete to be “the best band” within St. Dominic College of Asia!",
   shows: [
     { name: "College", time: "4:00 PM", bookable: true },
   ],
