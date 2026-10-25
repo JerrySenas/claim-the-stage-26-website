@@ -3,6 +3,24 @@ import { ObjectId } from "mongodb";
 import { notFound } from "next/navigation";
 import PayButton from "./PayButton";
 
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5 border-b border-[#652DC1]/30 py-3 last:border-b-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+      <dt className="text-xs font-bold uppercase tracking-widest text-[#652DC1]/70">
+        {label}
+      </dt>
+      <dd className="break-all text-base font-medium text-[#652DC1] sm:text-right">
+        {children}
+      </dd>
+    </div>
+  );
+}
+
+const STATUS_STYLE: Record<string, string> = {
+  confirmed: "border-green-500 text-green-400",
+  pending: "border-yellow-500 text-yellow-400",
+};
+
 export default async function TicketPage({
   params,
 }: {
@@ -16,52 +34,63 @@ export default async function TicketPage({
 
   if (!ticket) notFound();
 
+  const ticketId = ticket._id.toString();
+  const seats: string[] = ticket.seats ?? [];
+  const silver: number = ticket.silver ?? 0;
+  const items = [...seats, ...(silver > 0 ? [`Silver (standing) × ${silver}`] : [])];
+
   return (
-    <div className="flex flex-col gap-2 p-4">
-      <div>Ticket ID: {ticket._id.toString()}</div>
-      <div>Name: {ticket.name}</div>
-      <div>Student Number: {ticket.studentNum}</div>
-      <div>Email: {ticket.email}</div>
-      <div>Seats: {ticket.seats.join(", ")}</div>
-      <div>Price: ₱{ticket.price}</div>
-      <div>
-        Status:{" "}
-        <span
-          className={
-            ticket.status === "confirmed"
-              ? "text-green-600"
-              : ticket.status === "pending"
-                ? "text-yellow-600"
-                : "text-gray-500"
-          }
-        >
-          {ticket.status}
-        </span>
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4">
+      <h1 className="text-2xl font-bold text-[#652DC1]">Your Ticket</h1>
+
+      {/* Client details */}
+      <div className="rounded-3xl border border-[#652DC1] bg-black p-5 shadow-lg shadow-[#652DC1]/20">
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#652DC1]/70">
+            Ticket details
+          </span>
+          <span
+            className={`rounded-full border px-3 py-0.5 text-xs font-bold uppercase tracking-wider ${
+              STATUS_STYLE[ticket.status] ?? "border-neutral-500 text-neutral-400"
+            }`}
+          >
+            {ticket.status}
+          </span>
+        </div>
+
+        <dl>
+          <Row label="Name">{ticket.name}</Row>
+          <Row label="Student Number">{ticket.studentNum || "—"}</Row>
+          <Row label="Email">{ticket.email}</Row>
+          <Row label="Ticket">{items.length ? items.join(", ") : "—"}</Row>
+          <Row label="Price">
+            <span className="text-xl font-bold">₱{ticket.price}</span>
+          </Row>
+          <Row label="Ticket ID">
+            <span className="font-mono text-xs">{ticketId}</span>
+          </Row>
+        </dl>
       </div>
 
       {ticket.status === "pending" && (
-        <PayButton
-          ticketId={ticket._id.toString()}
-          name={ticket.name}
-          email={ticket.email}
-        />
+        <PayButton ticketId={ticketId} name={ticket.name} email={ticket.email} />
       )}
 
       {ticket.status === "confirmed" && (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-green-600">
+        <div className="flex flex-col gap-3 rounded-3xl border border-[#652DC1] bg-black p-5">
+          <p className="text-sm font-medium text-green-400">
             Payment confirmed. See you at the show!
           </p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`/ticket/${ticket._id.toString()}/image`}
+            src={`/ticket/${ticketId}/image`}
             alt="E-ticket"
-            className="w-full max-w-2xl rounded-lg border"
+            className="w-full rounded-2xl border border-[#652DC1]"
           />
           <a
-            href={`/ticket/${ticket._id.toString()}/image`}
-            download={`ticket-${ticket._id.toString()}.png`}
-            className="w-fit rounded bg-green-600 px-4 py-2 text-white"
+            href={`/ticket/${ticketId}/image`}
+            download={`ticket-${ticketId}.png`}
+            className="w-full rounded-xl bg-[#652DC1] px-4 py-3 text-center font-semibold text-white transition-colors hover:bg-[#7a45d6]"
           >
             Download ticket
           </a>
