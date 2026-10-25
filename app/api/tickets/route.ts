@@ -1,48 +1,27 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
-import { PayMongo } from "josu-paymongo";
 import { console } from "inspector";
-import { grandTotal, type SeatDoc } from "@/lib/pricing";
 
 interface Seat {
   _id: string;
   seatCode: string;
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const q = (searchParams.get("q") ?? "").trim();
-
-    // No query → return nothing
-    if (!q) {
-      return NextResponse.json([]);
-    }
-
     const client = await clientPromise;
-    const collection = client.db("tickets").collection("tickets");
+    const db = client.db("tickets");
+    const tickets = await db
+      .collection("tickets")
+      .find({})
+      .toArray();
 
-    const isFullObjectId = /^[a-f0-9]{24}$/i.test(q);
-
-    const filter = {
-      $or: [
-        { name: { $regex: q, $options: "i" } },
-        { email: { $regex: q, $options: "i" } },
-        { studentNum: { $regex: q, $options: "i" } },
-        ...(isFullObjectId ? [{ _id: new ObjectId(q) }] : []),
-      ],
-    };
-
-    const tickets = await collection.find(filter).limit(100).toArray();
-
+    return NextResponse.json(tickets);
+  } catch (e) {
+    console.error(e);
     return NextResponse.json(
-      tickets.map((t) => ({ ...t, _id: t._id.toString() }))
-    );
-  } catch (error) {
-    console.error("Failed to fetch tickets:", error);
-    return NextResponse.json(
-      { error: "Failed to load tickets" },
+      { error: "Failed to fetch tickets" },
       { status: 500 }
     );
   }
@@ -65,183 +44,184 @@ export async function getById(id:string) {
     }
 }
 
-const SILVER_PRICE = 100;
-const SILVER_MAX = 6000; // Set this to your actual configured limit.
+/**
+ * One person = one email. Gmail ignores dots and "+tags" in the name part and
+ * treats googlemail.com as gmail.com, so those variants count as the same address.
+ */
+function normalizeEmail(raw: string) {
+  const email = raw.trim().toLowerCase();
+  const at = email.lastIndexOf("@");
+  if (at < 1) return email;
+
+  let local = email.slice(0, at);
+  let domain = email.slice(at + 1);
+  if (domain === "gmail.com" || domain === "googlemail.com") {
+    domain = "gmail.com";
+    local = local.split("+")[0].replace(/\./g, "");
+  }
+  return `${local}@${domain}`;
+}
+
+let emailIndexReady: Promise<unknown> | undefined;
+/** Backs up the check below: the database itself refuses a second ticket per email. */
+function ensureEmailIndex(tickets: { createIndex: (...args: any[]) => Promise<unknown> }) {
+  emailIndexReady ??= tickets
+    .createIndex({ emailKey: 1 }, { unique: true, sparse: true })
+    .catch((e) => console.log("Could not create unique emailKey index", e));
+  return emailIndexReady;
+}
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
-    const name = formData.get("name");
-    const email = formData.get("email");
-    const studentNum = formData.get("studentNum");
-    const seatsJSON = formData.get("seats");
-    const silverValue = formData.get("silver") ?? "0";
 
-    if (
-      typeof name !== "string" ||
-      !name.trim() ||
-      typeof email !== "string" ||
-      !email.trim() ||
-      typeof studentNum !== "string" ||
-      !studentNum.trim() ||
-      typeof seatsJSON !== "string" ||
-      typeof silverValue !== "string"
-    ) {
+    const name = formData.get("name") as string;
+    const email = formData.get("email") as string;
+    const studentNum = formData.get("studentNum") as string;
+    const seatsJSON = formData.get("seats") as string;
+
+    if (!name?.trim() || !email?.trim()) {
       return NextResponse.json(
-        { error: "Name, email, student number, seats, and silver are required." },
+        { error: "Name and email are required." },
         { status: 400 }
       );
     }
 
-    let seatCodes: unknown;
+    let rawIDs: unknown;
     try {
-      seatCodes = JSON.parse(seatsJSON);
+      rawIDs = JSON.parse(seatsJSON);
     } catch {
-      return NextResponse.json(
-        { error: "Invalid seat selection." },
-        { status: 400 }
-      );
+      rawIDs = null;
     }
-
+    // Exactly one seat per booking.
     if (
-      !Array.isArray(seatCodes) ||
-      !seatCodes.every(
-        (code) => typeof code === "string" && code.length > 0
-      ) ||
-      new Set(seatCodes).size !== seatCodes.length
+      !Array.isArray(rawIDs) ||
+      rawIDs.length !== 1 ||
+      typeof rawIDs[0] !== "string" ||
+      !ObjectId.isValid(rawIDs[0])
     ) {
       return NextResponse.json(
-        { error: "Invalid or duplicate seat selection." },
+        { error: "You can only book one seat." },
         { status: 400 }
       );
     }
-
-    const silver = Number(silverValue);
-
-    if (
-      !Number.isSafeInteger(silver) ||
-      silver < 0 ||
-      silver > SILVER_MAX
-    ) {
-      return NextResponse.json(
-        { error: "Invalid Silver ticket quantity." },
-        { status: 400 }
-      );
-    }
-
-    if (seatCodes.length === 0 && silver === 0) {
-      return NextResponse.json(
-        { error: "Select at least one seat or Silver ticket." },
-        { status: 400 }
-      );
-    }
+    const seatID = new ObjectId(rawIDs[0]);
 
     const client = await clientPromise;
-    const seatDB = client.db("seats").collection<SeatDoc>("seats");
     const ticketDB = client.db("tickets").collection("tickets");
+    const seatDB = client.db("seats").collection("seats");
 
-    const selectedSeats = await seatDB
-      .find({ seatCode: { $in: seatCodes }, status: "available" })
-      .toArray();
-    
-    if (selectedSeats.length !== seatCodes.length) {
+    // One seat per email address.
+    const emailKey = normalizeEmail(email);
+    await ensureEmailIndex(ticketDB);
+    const existing = await ticketDB.findOne({ emailKey });
+    if (existing) {
       return NextResponse.json(
-        { error: "Some seats are no longer available." },
+        { error: "This email address already has a ticket. Only one seat can be booked per email." },
         { status: 409 }
       );
     }
 
-    // Price is computed while seats are still "available".
-    const totalPrice = grandTotal(selectedSeats, silver);
-    const currentTime = new Date()
-
-    const claimedCodes: string[] = [];
-    for (const seat of selectedSeats) {
-      const result = await seatDB.updateOne(
-        { _id: seat._id, status: "available" },
-        { $set: { status: "held" } }
+    // Take the seat only if it is still available, so it can't be booked twice.
+    const seat = await seatDB.findOneAndUpdate(
+      { _id: seatID, status: "available" },
+      { $set: { status: "held" } },
+      { returnDocument: "after" }
+    );
+    if (!seat) {
+      return NextResponse.json(
+        { error: "That seat is no longer available." },
+        { status: 409 }
       );
-
-      if (result.modifiedCount !== 1) {
-        await seatDB.updateMany(
-          { seatCode: { $in: claimedCodes }, status: "held" },
-          { $set: { status: "available" } }
-        );
-        return NextResponse.json(
-          { error: "Some seats are no longer available." },
-          { status: 409 }
-        );
-      }
-      claimedCodes.push(seat.seatCode);
     }
 
+    const currentTime = new Date()
     try {
       const result = await ticketDB.insertOne({
         name: name.trim(),
         email: email.trim(),
-        studentNum: studentNum.trim(),
-        seats: selectedSeats.map((seat) => seat.seatCode),
-        silver,
-        price: totalPrice,
-        status: "pending",
-        createdAt: currentTime,
+        emailKey: emailKey,
+        studentNum: studentNum,
+        seats: [seat.seatCode],
+        createdOn: currentTime,
         expiresAt: new Date(currentTime.getTime() + 10 * 60 * 1000),
-      });
+        price: seat.price,
+        status: "pending"
+      })
 
-      return NextResponse.json(
-        { success: true, id: result.insertedId.toString() },
-        { status: 201 }
-      );
-    } catch (error) {
-      await seatDB.updateMany(
-        { seatCode: { $in: claimedCodes }, status: "held" },
-        { $set: { status: "available" } }
-      );
-      throw error;
+      return NextResponse.json({ success: true, id: result.insertedId }, {status: 201});
+    } catch (e) {
+      // Ticket was not saved: give the seat back.
+      await seatDB.updateOne({ _id: seatID, status: "held" }, { $set: { status: "available" } });
+      // Two requests for the same email at once: the unique index stops the second.
+      if ((e as { code?: number }).code === 11000) {
+        return NextResponse.json(
+          { error: "This email address already has a ticket. Only one seat can be booked per email." },
+          { status: 409 }
+        );
+      }
+      throw e;
     }
-  } catch (error) {
-    console.error("Failed to create ticket:", error);
+  } catch(e) {
+    console.log(e)
     return NextResponse.json(
-      { error: "Failed to create ticket." },
+      { error: "Failed to create ticker" },
       { status: 500 }
     );
   }
 }
 
-const paymongo = PayMongo.getInstance({
-  secretKey: process.env.PAYMONGO_SECRET_KEY!,
-});
-
 export async function pay(id: string) {
-  if (!ObjectId.isValid(id)) throw new Error("Invalid ticket ID");
+  try {
+    if (!ObjectId.isValid(id)) {
+      throw new Error("Invalid ticket ID");
+    }
 
-  const client = await clientPromise;
-  const ticket = await client
-    .db("tickets")
-    .collection("tickets")
-    .findOne({ _id: new ObjectId(id), status: "pending" });
+    const client = await clientPromise;
 
-  if (!ticket) throw new Error("Ticket not found or already confirmed");
+    const ticketDB = client
+      .db("tickets")
+      .collection("tickets");
 
-  const intent = await paymongo.paymentIntents.create({
-    amount: ticket.price * 100, // PHP → centavos
-    currency: "PHP",
-    paymentMethodAllowed: ["qrph"], // GCash only for now
-    description: `Ticket ${id}`,
-    metadata: { ticketId: id }, // critical for webhook lookup
-  });
+    const seatDB = client
+      .db("seats")
+      .collection("seats");
 
-  await client
-    .db("tickets")
-    .collection("tickets")
-    .updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { paymentIntentId: intent.id } }
+    const ticket = await ticketDB.findOneAndUpdate(
+      {
+        _id: new ObjectId(id),
+        status: "pending",
+      },
+      {
+        $set: {
+          status: "confirmed",
+        },
+      },
+      {
+        returnDocument: "after",
+      }
     );
 
-  return {
-    clientKey: intent.attributes.client_key,
-    paymentIntentId: intent.id,
-  };
-}
+    if (!ticket) {
+      throw new Error("Ticket not found or already confirmed");
+    }
 
+    await seatDB.updateMany(
+      {
+        seatCode: {
+          $in: ticket.seats,
+        },
+      },
+      {
+        $set: {
+          status: "occupied",
+        },
+      }
+    );
+
+    return ticket;
+  } catch (e) {
+    console.error(e);
+    throw e;
+  }
+}
