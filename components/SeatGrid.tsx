@@ -160,6 +160,19 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
   );
   const totalPrice =
     grandTotal(selectedSeats, silver);
+  const ticketLines = [
+    { tier: "PLATINUM" as Tier, name: "Platinum" },
+    { tier: "GOLD" as Tier, name: "Gold" },
+  ]
+    .map(({ tier, name }) => {
+      const list = selectedSeats.filter((s) => s.tier === tier);
+      return {
+        name,
+        labels: list.map((s) => s.label),
+        subtotal: list.reduce((t, s) => t + s.price, 0),
+      };
+    })
+    .filter((line) => line.labels.length > 0);
 
   const remaining = useMemo(() => {
     const count = (tier: Tier) =>
