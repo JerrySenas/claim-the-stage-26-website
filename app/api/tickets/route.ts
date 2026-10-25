@@ -168,6 +168,7 @@ export async function POST(request: Request) {
     }
 
     try {
+      const now = new Date();
       const result = await ticketDB.insertOne({
         name: name.trim(),
         email: email.trim(),
@@ -175,7 +176,9 @@ export async function POST(request: Request) {
         silver,
         price: totalPrice,
         status: "pending",
-        createdAt: new Date(),
+        createdAt: now,
+        // The /api/cron job deletes pending tickets past this time and frees their seats.
+        expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
       });
 
       return NextResponse.json(
