@@ -340,25 +340,73 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
         </p>
       </div>
 
-      <div className="mt-4 rounded-lg border p-4">
-        <p className="mb-3 font-semibold">
-          {selectedSeats.length === 0 && silver === 0
-            ? "Nothing selected"
-            : `${[
-                ...selectedSeats.map((s) => s.label),
-                ...(silver > 0 ? [`Silver ×${silver}`] : []),
-              ].join(", ")} — ₱${totalPrice}`}
-        </p>
+            <div className="mt-4 rounded-lg border border-[#652DC1] bg-black p-5 text-[#652DC1]">
+        <h4 className="mb-3 text-sm font-bold uppercase tracking-widest">Your tickets</h4>
 
-        <p className={clsx("mb-3 text-red-500", { hidden: message === "" })}>{message}</p>
+        {ticketLines.length === 0 && silver === 0 ? (
+          <p className="mb-4 text-sm opacity-70">Nothing selected yet.</p>
+        ) : (
+          <ul className="mb-4 space-y-1 text-sm">
+            {ticketLines.map((line) => (
+              <li key={line.name} className="flex justify-between gap-4">
+                <span>
+                  <span className="font-semibold">{line.name}:</span>{" "}
+                  {line.labels.join(", ")}
+                </span>
+                <span>₱{line.subtotal}</span>
+              </li>
+            ))}
+            {silver > 0 && (
+              <li className="flex justify-between gap-4">
+                <span>
+                  <span className="font-semibold">Silver (standing):</span> ×{silver}
+                </span>
+                <span>₱{silver * SILVER_PRICE}</span>
+              </li>
+            )}
+            <li className="flex justify-between gap-4 border-t border-[#652DC1] pt-2 font-bold">
+              <span>Total</span>
+              <span>₱{totalPrice}</span>
+            </li>
+          </ul>
+        )}
 
-        <form onSubmit={onSubmit} className="flex flex-wrap gap-2">
-          <input className="border rounded-lg px-2 py-1 text-black bg-white" type="text" name="name" placeholder="Name" required />
-          <input className="border rounded-lg px-2 py-1 text-black bg-white" type="email" name="email" placeholder="Email" required />
+        <p className={clsx("mb-3 text-sm text-red-500", { hidden: message === "" })}>{message}</p>
+
+        <form onSubmit={onSubmit} className="space-y-3">
+          <label className="block text-sm font-semibold">
+            Name
+            <input
+              type="text"
+              name="name"
+              required
+              className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]"
+            />
+          </label>
+          <label className="block text-sm font-semibold">
+            Student Number
+            <input
+              type="text"
+              name="studentNum"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              required
+              className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]"
+            />
+          </label>
+          <label className="block text-sm font-semibold">
+            Email
+            <input
+              type="email"
+              name="email"
+              required
+              className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]"
+            />
+          </label>
           <button
             type="submit"
             disabled={submitting || offline || (selectedSeats.length === 0 && silver === 0)}
-            className="rounded-lg bg-blue-600 px-4 py-1 text-white disabled:opacity-50"
+            className="w-full rounded-lg bg-[#652DC1] px-4 py-2 font-semibold text-[#8B9FEE] hover:bg-[#7A3FE0] disabled:opacity-50"
           >
             {submitting ? "Booking..." : "Submit"}
           </button>
