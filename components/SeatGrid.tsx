@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import clsx from "clsx";
-import { GRID_COLS, GRID_ROWS, SILVER_AREA, SILVER_MAX, SILVER_PRICE, type Tier } from "@/lib/seatLayout";
+import { GRID_COLS, GRID_ROWS, SILVER_AREA, SILVER_PRICE, type Tier } from "@/lib/seatLayout";
 import { grandTotal, TIER_PRICE } from "@/lib/pricing";
 
 type SeatStatus = "available" | "held" | "occupied" | "reserved";
@@ -180,27 +180,32 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
     return { PLATINUM: count("PLATINUM"), GOLD: count("GOLD") };
   }, [seats]);
 
-  function changeSilver(value: number) {
+  // One ticket per booking: either one seat or one Silver (standing) ticket.
+  function toggleSilver() {
     setMessage("");
-    if (!Number.isFinite(value)) return;
-    setSilver(Math.min(SILVER_MAX, Math.max(0, Math.floor(value))));
+    if (silver === 1) {
+      setSilver(0);
+    } else {
+      setSilver(1);
+      setSelected(new Set());
+    }
   }
 
   function toggle(seat: Seat) {
     if (seat.status !== "available") return;
     setMessage("");
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(seat.seatCode)) next.delete(seat.seatCode);
-      else next.add(seat.seatCode);
-      return next;
-    });
+    // Picking a seat replaces any other seat (or the Silver ticket);
+    // clicking the selected seat again unselects it.
+    setSilver(0);
+    setSelected((current) =>
+      current.has(seat.seatCode) ? new Set() : new Set([seat.seatCode])
+    );
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (selectedSeats.length === 0 && silver === 0) {
-      setMessage("Please select at least one seat or Silver ticket.");
+    if (selectedSeats.length + silver !== 1) {
+      setMessage("Please select one seat or one Silver ticket.");
       return;
     }
 
@@ -292,36 +297,23 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
               <div className="text-center text-xs font-bold uppercase tracking-widest text-neutral-200">
                 Silver · ₱{SILVER_PRICE} · Standing
                 <div className="text-[10px] font-normal normal-case tracking-normal text-neutral-400">
-                  No seat numbers, no limit per booking
+                  No seat number · one ticket per booking
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-label="Remove one Silver ticket"
-                  onClick={() => changeSilver(silver - 1)}
-                  className="h-8 w-8 rounded-md bg-neutral-700 text-lg leading-none hover:bg-neutral-600"
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  min={0}
-                  max={SILVER_MAX}
-                  value={silver}
-                  aria-label="Number of Silver tickets"
-                  onChange={(e) => changeSilver(Number(e.target.value))}
-                  className="h-8 w-20 rounded-md bg-white text-center text-sm text-black"
-                />
-                <button
-                  type="button"
-                  aria-label="Add one Silver ticket"
-                  onClick={() => changeSilver(silver + 1)}
-                  className="h-8 w-8 rounded-md bg-neutral-700 text-lg leading-none hover:bg-neutral-600"
-                >
-                  +
-                </button>
-              </div>
+              <button
+                type="button"
+                aria-pressed={silver === 1}
+                aria-label={silver === 1 ? "Remove Silver ticket" : "Add one Silver ticket"}
+                onClick={toggleSilver}
+                className={clsx(
+                  "flex h-10 w-10 items-center justify-center rounded-md text-2xl font-bold leading-none transition-colors",
+                  silver === 1
+                    ? "bg-blue-500 text-white ring-2 ring-blue-300"
+                    : "bg-neutral-700 text-neutral-100 hover:bg-neutral-600"
+                )}
+              >
+                {silver === 1 ? "✓" : "+"}
+              </button>
             </div>
 
             {seats.map((seat) => (
