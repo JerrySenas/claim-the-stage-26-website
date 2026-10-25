@@ -224,7 +224,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
         }
         return;
       }
-
+      setLoading(true);
       router.push(`/ticket/${data.id}`);
     } catch (error) {
       console.error(error);

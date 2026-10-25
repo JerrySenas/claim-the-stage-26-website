@@ -54,6 +54,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const name = formData.get("name");
     const email = formData.get("email");
+    const studentNum = formData.get("studentNum");
     const seatsJSON = formData.get("seats");
     const silverValue = formData.get("silver") ?? "0";
 
@@ -62,11 +63,13 @@ export async function POST(request: Request) {
       !name.trim() ||
       typeof email !== "string" ||
       !email.trim() ||
+      typeof studentNum !== "string" ||
+      !studentNum.trim() ||
       typeof seatsJSON !== "string" ||
       typeof silverValue !== "string"
     ) {
       return NextResponse.json(
-        { error: "Name, email, seats, and silver are required." },
+        { error: "Name, email, student number, seats, and silver are required." },
         { status: 400 }
       );
     }
@@ -128,20 +131,6 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
-    // const db = client.db("tickets");
-    // const currentTime = new Date()
-    // const result = await db
-    //     .collection("tickets")
-    //     .insertOne({
-    //         name: name,
-    //         email: email,
-    //         studentNum: studentNum,
-    //         seats: seatCodes,
-    //         createdOn: currentTime,
-    //         expiresAt: new Date(currentTime.getTime() + 10 * 60 * 1000),
-    //         price: totalPrice,
-    //         status: "pending"
-    //     })
 
     // Price is computed while seats are still "available".
     const totalPrice = grandTotal(selectedSeats, silver);
@@ -171,6 +160,7 @@ export async function POST(request: Request) {
       const result = await ticketDB.insertOne({
         name: name.trim(),
         email: email.trim(),
+        studentNum: studentNum.trim(),
         seats: selectedSeats.map((seat) => seat.seatCode),
         silver,
         price: totalPrice,
