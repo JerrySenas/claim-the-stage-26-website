@@ -107,9 +107,10 @@ export async function POST(request: Request) {
       );
     }
 
-    if (seatCodes.length === 0 && silver === 0) {
+    // One ticket per booking: exactly one seat, or exactly one Silver ticket.
+    if (seatCodes.length + silver !== 1) {
       return NextResponse.json(
-        { error: "Select at least one seat or Silver ticket." },
+        { error: "You can only book one seat or one Silver ticket." },
         { status: 400 }
       );
     }
