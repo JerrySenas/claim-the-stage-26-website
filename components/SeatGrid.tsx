@@ -376,32 +376,15 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
         <form onSubmit={onSubmit} className="space-y-3">
           <label className="block text-sm font-semibold">
             Name
-            <input
-              type="text"
-              name="name"
-              required
-              className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]"
-            />
+            <input type="text" name="name" required className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
           </label>
           <label className="block text-sm font-semibold">
             Student Number
-            <input
-              type="text"
-              name="studentNum"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              required
-              className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]"
-            />
+            <input type="text" name="studentNum" inputMode="numeric" pattern="[0-9]*" required className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
           </label>
           <label className="block text-sm font-semibold">
             Email
-            <input
-              type="email"
-              name="email"
-              required
-              className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]"
-            />
+            <input type="email" name="email" required className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
           </label>
           <button
             type="submit"
