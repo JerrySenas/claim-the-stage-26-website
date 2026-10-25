@@ -2,6 +2,7 @@ import { getById } from "@/app/api/tickets/route";
 import { ObjectId } from "mongodb";
 import { notFound } from "next/navigation";
 import PayButton from "./PayButton";
+import Countdown from "./Countdown";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -37,6 +38,12 @@ export default async function TicketPage({
   const ticketId = ticket._id.toString();
   const seats: string[] = ticket.seats ?? [];
   const silver: number = ticket.silver ?? 0;
+  // Older tickets have no expiresAt, so fall back to createdAt + 10 minutes.
+  const expiresAt: string | null = ticket.expiresAt
+    ? new Date(ticket.expiresAt).toISOString()
+    : ticket.createdAt
+      ? new Date(new Date(ticket.createdAt).getTime() + 10 * 60 * 1000).toISOString()
+      : null;
   const items = [...seats, ...(silver > 0 ? [`Silver (standing) × ${silver}`] : [])];
 
   return (
@@ -71,6 +78,10 @@ export default async function TicketPage({
           </Row>
         </dl>
       </div>
+
+      {ticket.status === "pending" && expiresAt && (
+        <Countdown expiresAt={expiresAt} />
+      )}
 
       {ticket.status === "pending" && (
         <PayButton ticketId={ticketId} name={ticket.name} email={ticket.email} />
