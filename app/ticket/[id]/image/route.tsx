@@ -45,7 +45,7 @@ export async function GET(
 
     const seatLabels = Array.isArray(ticket.seats)
       ? ticket.seats.join(", ")
-      : "";
+      : "N/A (Silver)";
 
     const seatSection = ticket.seats.length > 0
     ? ticket.seats[0].slice(0, 2)
