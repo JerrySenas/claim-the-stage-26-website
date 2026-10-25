@@ -21,7 +21,7 @@ export default function Home() {
           />
 
           <div className="text-left">
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#652DC1]">
               {EVENT.tagline}
             </p>
             <h1 className="mt-2 text-4xl font-bold sm:text-5xl">{EVENT.name}</h1>
@@ -62,7 +62,7 @@ export default function Home() {
           {TICKET_TYPES.map((t) => (
             <div key={t.name} className="rounded-lg border border-neutral-700 p-4">
               <p className="font-semibold">{t.name}</p>
-              <p className="text-2xl font-bold text-amber-400">
+              <p className="text-2xl font-bold text-[#652DC1]">
                 {t.price === null ? "Reserved" : `₱${t.price}`}
               </p>
               <p className="mt-2 text-sm text-neutral-400">{t.note}</p>
@@ -74,7 +74,7 @@ export default function Home() {
       <section className="rounded-2xl bg-neutral-900 p-6 text-neutral-100">
         <h2 className="mb-4 text-xl font-semibold">How to book</h2>
         <ol className="list-decimal space-y-2 pl-5 text-neutral-300">
-          <li>Open the <Link href="/book" className="text-amber-400 underline">Book Tickets</Link> tab.</li>
+          <li>Open the <Link href="/book" className="text-[#652DC1] underline">Book Tickets</Link> tab.</li>
           <li>Choose from the indicated available seats.</li>
           <li>Enter the details required.</li>
           <li>Pay for your ticket to confirm it.</li>
