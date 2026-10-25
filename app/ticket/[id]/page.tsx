@@ -48,9 +48,24 @@ export default async function TicketPage({
       )}
 
       {ticket.status === "confirmed" && (
-        <p className="text-sm text-green-600">
-          Payment confirmed. See you at the show!
-        </p>
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-green-600">
+            Payment confirmed. See you at the show!
+          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/ticket/${ticket._id.toString()}/image`}
+            alt="E-ticket"
+            className="w-full max-w-2xl rounded-lg border"
+          />
+          <a
+            href={`/ticket/${ticket._id.toString()}/image`}
+            download={`ticket-${ticket._id.toString()}.png`}
+            className="w-fit rounded bg-green-600 px-4 py-2 text-white"
+          >
+            Download ticket
+          </a>
+        </div>
       )}
     </div>
   );
