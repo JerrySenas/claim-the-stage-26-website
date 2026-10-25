@@ -93,29 +93,29 @@ export default function PayButton({
   }
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex w-full flex-col items-center gap-3">
       {!qrImage && (
         <button
           type="button"
           onClick={handlePay}
           disabled={loading}
-          className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
+          className="w-full rounded-xl bg-[#652DC1] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#7a45d6] disabled:opacity-50"
         >
           {loading ? "Generating QR code..." : "Pay with QR Ph"}
         </button>
       )}
 
       {error && (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-red-400">{error}</p>
       )}
 
       {qrImage && (
-        <div className="flex flex-col items-center gap-3 rounded-lg border p-4">
-          <h2 className="text-lg font-semibold">
+        <div className="flex w-full flex-col items-center gap-3 rounded-2xl border border-[#652DC1] bg-black p-4">
+          <h2 className="text-lg font-semibold text-[#652DC1]">
             Scan to Pay
           </h2>
 
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-neutral-400">
             Open GCash, Maya, or a participating banking app
             and scan this QR code to complete your payment.
           </p>
@@ -123,17 +123,17 @@ export default function PayButton({
           <img
             src={qrImage}
             alt="QR Ph payment QR code"
-            className="h-64 w-64 object-contain"
+            className="h-64 w-64 rounded-xl bg-white object-contain p-2"
           />
 
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-neutral-400">
             Complete payment before the QR code expires.
           </p>
 
           <button
             type="button"
             onClick={() => router.refresh()}
-            className="rounded border px-4 py-2"
+            className="rounded-xl border border-[#652DC1] px-4 py-2 text-[#652DC1] hover:bg-[#652DC1]/10"
           >
             I've paid — Check ticket status
           </button>
