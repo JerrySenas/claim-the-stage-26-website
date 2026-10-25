@@ -340,7 +340,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
         </p>
       </div>
 
-            <div className="mt-4 rounded-lg border border-[#652DC1] bg-black p-5 text-[#652DC1]">
+      <div className="mt-4 rounded-lg border border-[#652DC1] bg-black p-5 text-[#652DC1]">
         <h4 className="mb-3 text-sm font-bold uppercase tracking-widest">Your tickets</h4>
 
         {ticketLines.length === 0 && silver === 0 ? (
