@@ -6,11 +6,11 @@ export const EVENT = {
   name: "Claim the Stage",
   tagline: "Battle of the Bands",
   venue: "Digital Campus Grounds",
-  dateLabel: "November 16, 2026",
+  dateLabel: "November 25, 2026",
   description:
     "Claim the Stage is a night of live music where bands go head to head for the crowd. Grab a seat up front or stand with the crowd, and be there when the winners take the stage.",
   shows: [
-    { name: "College", time: "6:00 PM", bookable: true },
+    { name: "College", time: "4:00 PM", bookable: true },
   ],
 };
 
