@@ -31,7 +31,7 @@ export default function Home() {
             <p className="mt-4 max-w-prose text-neutral-300">{EVENT.description}</p>
             <Link
               href="/book"
-              className="mt-8 inline-block rounded-lg bg-amber-400 px-6 py-3 font-semibold text-amber-950 hover:bg-amber-300"
+              className="mt-8 inline-block rounded-lg bg-[#652DC1] px-6 py-3 font-semibold text-[#8B9FEE] hover:bg-[#7A3FE0]"
             >
               Book tickets
             </Link>
