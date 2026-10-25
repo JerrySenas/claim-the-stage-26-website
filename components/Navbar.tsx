@@ -9,7 +9,6 @@ const links = [
   { href: "/", label: "Home" },
   { href: "/book", label: "Book Tickets" },
   { href: "/ticket", label: "Search Ticket" },
-  { href: "/admin", label: "Admin" },
 ];
 
 export default function Navbar() {

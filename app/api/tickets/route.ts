@@ -10,20 +10,39 @@ interface Seat {
   seatCode: string;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const client = await clientPromise;
-    const db = client.db("tickets");
-    const tickets = await db
-      .collection("tickets")
-      .find({})
-      .toArray();
+    const { searchParams } = new URL(request.url);
+    const q = (searchParams.get("q") ?? "").trim();
 
-    return NextResponse.json(tickets);
-  } catch (e) {
-    console.error(e);
+    // No query → return nothing
+    if (!q) {
+      return NextResponse.json([]);
+    }
+
+    const client = await clientPromise;
+    const collection = client.db("tickets").collection("tickets");
+
+    const isFullObjectId = /^[a-f0-9]{24}$/i.test(q);
+
+    const filter = {
+      $or: [
+        { name: { $regex: q, $options: "i" } },
+        { email: { $regex: q, $options: "i" } },
+        { studentNum: { $regex: q, $options: "i" } },
+        ...(isFullObjectId ? [{ _id: new ObjectId(q) }] : []),
+      ],
+    };
+
+    const tickets = await collection.find(filter).limit(100).toArray();
+
     return NextResponse.json(
-      { error: "Failed to fetch tickets" },
+      tickets.map((t) => ({ ...t, _id: t._id.toString() }))
+    );
+  } catch (error) {
+    console.error("Failed to fetch tickets:", error);
+    return NextResponse.json(
+      { error: "Failed to load tickets" },
       { status: 500 }
     );
   }
