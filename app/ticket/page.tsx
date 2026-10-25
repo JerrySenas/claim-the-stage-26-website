@@ -1,105 +1,101 @@
-"use client";
+import { getById } from "@/app/api/tickets/route";
+import { ObjectId } from "mongodb";
+import { notFound } from "next/navigation";
+import PayButton from "./PayButton";
 
-import { useEffect, useState } from "react";
-
-interface Ticket {
-  _id: string;
-  name: string;
-  studentNum: string;
-  email: string;
-  seats: string[];
-  price: number;
-  status: string;
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5 border-b border-[#652DC1]/30 py-3 last:border-b-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+      <dt className="text-xs font-bold uppercase tracking-widest text-[#652DC1]/70">
+        {label}
+      </dt>
+      <dd className="break-all text-base font-medium text-[#652DC1] sm:text-right">
+        {children}
+      </dd>
+    </div>
+  );
 }
 
-export default function TicketsPage() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+const STATUS_STYLE: Record<string, string> = {
+  confirmed: "border-green-500 text-green-400",
+  pending: "border-yellow-500 text-yellow-400",
+};
 
-  useEffect(() => {
-    const query = search.trim();
+export default async function TicketPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
 
-    // Nothing typed → clear results, don't hit the API
-    if (!query) {
-      setTickets([]);
-      setLoading(false);
-      setError("");
-      return;
-    }
+  if (!ObjectId.isValid(id)) notFound();
 
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      setError("");
+  const ticket = await (await getById(id)).json();
 
-      try {
-        const response = await fetch(
-          `/api/tickets?q=${encodeURIComponent(query)}`,
-          { signal: controller.signal }
-        );
-        if (!response.ok) throw new Error("Failed to fetch tickets");
+  if (!ticket) notFound();
 
-        const data: Ticket[] = await response.json();
-        setTickets(data);
-      } catch (err) {
-        if ((err as Error).name === "AbortError") return;
-        console.error(err);
-        setError("Could not load tickets. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [search]);
-
-  const hasQuery = search.trim().length > 0;
+  const ticketId = ticket._id.toString();
+  const seats: string[] = ticket.seats ?? [];
+  const silver: number = ticket.silver ?? 0;
+  const items = [...seats, ...(silver > 0 ? [`Silver (standing) × ${silver}`] : [])];
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
-      <h1 className="mb-6 text-3xl font-bold">Tickets</h1>
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4">
+      <h1 className="text-2xl font-bold text-[#652DC1]">Your Ticket</h1>
 
-      <input
-        type="search"
-        placeholder="Search by name, email, student number, or ticket ID..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="mb-6 w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
-      />
+      {/* Client details */}
+      <div className="rounded-3xl border border-[#652DC1] bg-black p-5 shadow-lg shadow-[#652DC1]/20">
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#652DC1]/70">
+            Ticket details
+          </span>
+          <span
+            className={`rounded-full border px-3 py-0.5 text-xs font-bold uppercase tracking-wider ${
+              STATUS_STYLE[ticket.status] ?? "border-neutral-500 text-neutral-400"
+            }`}
+          >
+            {ticket.status}
+          </span>
+        </div>
 
-      {!hasQuery ? (
-        <p className="text-gray-500">Type to search tickets.</p>
-      ) : loading ? (
-        <p>Loading tickets...</p>
-      ) : error ? (
-        <p className="text-red-500">{error}</p>
-      ) : tickets.length === 0 ? (
-        <p className="text-gray-500">No tickets match your search.</p>
-      ) : (
-        <div className="space-y-3">
-          {tickets.map((ticket) => (
-            <a
-              key={ticket._id}
-              href={`/ticket/${ticket._id}`}
-              className="block rounded-lg border p-4 transition hover:bg-gray-50"
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold">{ticket.name}</h2>
-                <span className="text-sm text-gray-500">{ticket.status}</span>
-              </div>
-              <p className="text-sm text-gray-600">{ticket.email}</p>
-              <p className="mt-2 text-sm">Student No: {ticket.studentNum}</p>
-              <p className="mt-1 text-sm">Seats: {ticket.seats.join(", ")}</p>
-              <p className="mt-1 font-medium">₱{ticket.price}</p>
-            </a>
-          ))}
+        <dl>
+          <Row label="Name">{ticket.name}</Row>
+          <Row label="Student Number">{ticket.studentNum || "—"}</Row>
+          <Row label="Email">{ticket.email}</Row>
+          <Row label="Ticket">{items.length ? items.join(", ") : "—"}</Row>
+          <Row label="Price">
+            <span className="text-xl font-bold">₱{ticket.price}</span>
+          </Row>
+          <Row label="Ticket ID">
+            <span className="font-mono text-xs">{ticketId}</span>
+          </Row>
+        </dl>
+      </div>
+
+      {ticket.status === "pending" && (
+        <PayButton ticketId={ticketId} name={ticket.name} email={ticket.email} />
+      )}
+
+      {ticket.status === "confirmed" && (
+        <div className="flex flex-col gap-3 rounded-3xl border border-[#652DC1] bg-black p-5">
+          <p className="text-sm font-medium text-green-400">
+            Payment confirmed. See you at the show!
+          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/ticket/${ticketId}/image`}
+            alt="E-ticket"
+            className="w-full rounded-2xl border border-[#652DC1]"
+          />
+          <a
+            href={`/ticket/${ticketId}/image`}
+            download={`ticket-${ticketId}.png`}
+            className="w-full rounded-xl bg-[#652DC1] px-4 py-3 text-center font-semibold text-white transition-colors hover:bg-[#7a45d6]"
+          >
+            Download ticket
+          </a>
         </div>
       )}
-    </main>
+    </div>
   );
 }
