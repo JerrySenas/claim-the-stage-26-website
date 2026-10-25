@@ -43,7 +43,7 @@ export async function GET(
     templateSvg
     )}`;
 
-    const seatLabels = Array.isArray(ticket.seats)
+    const seatLabels = ticket.seats.length > 0
       ? ticket.seats.join(", ")
       : "N/A (Silver)";
 
