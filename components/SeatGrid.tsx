@@ -1,110 +1,40 @@
-"use client";
+"use client"; 
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, SubmitEvent } from "react";
 import { useRouter } from "next/navigation";
+import { ObjectId } from "mongodb";
 import clsx from "clsx";
-import { GRID_COLS, GRID_ROWS, SILVER_AREA, SILVER_MAX, SILVER_PRICE, type Tier } from "@/lib/seatLayout";
-import { grandTotal, TIER_PRICE } from "@/lib/pricing";
-
-type SeatStatus = "available" | "held" | "occupied" | "reserved";
 
 interface Seat {
+  _id: ObjectId;
   seatCode: string;
-  tier: Tier;
-  x: number;
-  y: number;
-  label: string;
-  status: SeatStatus;
+  name: string;
+  price: number;
+  status: string;
+  selected: boolean
 }
 
-const CELL = 32; // px, seat size
-const GAP = 4; // px
-
-const TIER_STYLE: Record<Tier, string> = {
-  PLATINUM: "bg-slate-200 text-slate-900 hover:bg-white",
-  GOLD: "bg-amber-400 text-amber-950 hover:bg-amber-300",
-  VIP: "bg-fuchsia-900 text-fuchsia-200",
-};
-
-const place = (x: number, y: number, w = 1, h = 1) => ({
-  gridColumn: `${x + 1} / span ${w}`,
-  gridRow: `${y + 1} / span ${h}`,
-});
-
-const Label = ({
-  x,
-  y,
-  w = 1,
-  className,
-  children,
-}: {
-  x: number;
-  y: number;
-  w?: number;
-  className?: string;
-  children: ReactNode;
-}) => (
-  <div
-    style={place(x, y, w)}
-    className={clsx(
-      "flex items-center justify-center text-[10px] font-bold uppercase tracking-widest",
-      className
-    )}
-  >
-    {children}
-  </div>
-);
-
-interface SeatButtonProps {
+interface SeatProps {
   seat: Seat;
-  selected: boolean;
   onClick: () => void;
 }
 
-const SeatButton = ({ seat, selected, onClick }: SeatButtonProps) => {
-  const bookable = seat.status === "available";
-  const price = TIER_PRICE[seat.tier] ?? 0;
-  const state =
-    seat.status === "occupied"
-      ? "Booked"
-      : seat.status === "held"
-        ? "Reserved by another buyer"
-        : seat.status === "reserved"
-          ? "Reserved (not for sale)"
-          : `₱${price}`;
-
-  return (
+const Seat = ({seat, onClick}: SeatProps) => (
     <button
       type="button"
-      disabled={!bookable}
       onClick={onClick}
-      aria-pressed={selected}
-      aria-label={`${seat.tier} seat ${seat.label}, ${state}`}
-      title={`${seat.tier} ${seat.label} (${seat.seatCode}) · ${state}`}
-      style={place(seat.x, seat.y)}
       className={clsx(
-        "flex items-center justify-center rounded-md text-[9px] font-semibold leading-none transition-colors",
+        "flex h-10 w-10 items-center justify-center rounded-md text-sm font-semibold",
         {
-          "bg-blue-500 text-white ring-2 ring-blue-300": selected,
-          [TIER_STYLE[seat.tier]]: !selected && (bookable || seat.status === "reserved"),
-          "cursor-not-allowed bg-orange-500 text-orange-950":
-            !selected && seat.status === "held",
-          "cursor-not-allowed bg-neutral-700 text-neutral-500 line-through":
-            !selected && seat.status === "occupied",
-          "cursor-not-allowed opacity-60": seat.status === "reserved",
+            "bg-blue-500": seat.selected,
+            "bg-white text-black": !seat.selected && seat.status === "available",
+            "bg-orange-500": !seat.selected && seat.status === "held",
+            "bg-gray-500": !seat.selected && seat.status === "occupied"
         }
       )}
     >
-      {seat.label}
+        {seat.seatCode}
     </button>
-  );
-};
-
-const LegendItem = ({ className, children }: { className: string; children: ReactNode }) => (
-  <span className="flex items-center gap-2">
-    <span className={clsx("inline-block h-4 w-4 rounded", className)} />
-    {children}
-  </span>
 );
 
 interface SeatListProps {
@@ -114,286 +44,116 @@ interface SeatListProps {
 
 export default function SeatList({ endpoint, title }: SeatListProps) {
   const [seats, setSeats] = useState<Seat[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
-  const [offline, setOffline] = useState(false);
-  const [silver, setSilver] = useState(0);
-  const router = useRouter();
-
-  const loadSeats = useCallback(async () => {
-    try {
-      const response = await fetch(endpoint, { cache: "no-store" });
-      if (!response.ok) {
-        console.error(`An error occurred: ${response.statusText}`);
-        setMessage("Could not load the seat map. Please refresh the page.");
-        return;
-      }
-      const data: Seat[] = await response.json();
-      const isOffline = response.headers.get("x-seat-data") === "static";
-      setOffline(isOffline);
-      if (isOffline) setMessage("The booking database can't be reached, so live availability is unavailable and booking is disabled.");
-      setSeats(data);
-      // Drop any selected seat that is no longer available.
-      setSelected((current) => {
-        const free = new Set(
-          data.filter((s) => s.status === "available").map((s) => s.seatCode)
-        );
-        return new Set([...current].filter((code) => free.has(code)));
-      });
-    } catch (error) {
-      console.error("Error fetching seats:", error);
-      setMessage("Could not load the seat map. Please refresh the page.");
-    } finally {
-      setLoading(false);
-    }
-  }, [endpoint]);
+  const router = useRouter()
 
   useEffect(() => {
-    loadSeats();
-  }, [loadSeats]);
+    async function getSeats() {
+      try {
+        const response = await fetch(endpoint);
+        if (!response.ok) {
+          const message = `An error occurred: ${response.statusText}`;
+          console.error(message);
+          return;
+        }
+        const seats = await response.json();
+        setSeats(seats.map((seat: Seat) => ({
+            ...seat,
+            selected: false,
+        })));
+      } catch (error) {
+        console.error("Error fetching seats:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    getSeats();
+  }, [endpoint]);
 
-  const selectedSeats = useMemo(
-    () => seats.filter((seat) => selected.has(seat.seatCode)),
-    [seats, selected]
-  );
-  const totalPrice =
-    grandTotal(selectedSeats, silver);
-  const ticketLines = [
-    { tier: "PLATINUM" as Tier, name: "Platinum" },
-    { tier: "GOLD" as Tier, name: "Gold" },
-  ]
-    .map(({ tier, name }) => {
-      const list = selectedSeats.filter((s) => s.tier === tier);
-      return {
-        name,
-        labels: list.map((s) => s.label),
-        subtotal: list.reduce((t, s) => t + TIER_PRICE[s.tier], 0),
-      };
-    })
-    .filter((line) => line.labels.length > 0);
+  function getSelectedSeats() {return seats.filter((seat) => seat.selected)}
+  function getTotalPrice() {return getSelectedSeats().reduce((total, seat) => total + seat.price, 0)}
 
-  const remaining = useMemo(() => {
-    const count = (tier: Tier) =>
-      seats.filter((s) => s.tier === tier && s.status === "available").length;
-    return { PLATINUM: count("PLATINUM"), GOLD: count("GOLD") };
-  }, [seats]);
+  function seatList() {
+    return seats.map((seat) => {
+      return <Seat
+        seat={seat}
+        key={seat._id.toString()}
+        onClick={() => {
+            if (seat.status !== "available") return;
+            setMessage("");
 
-  function changeSilver(value: number) {
-    setMessage("");
-    if (!Number.isFinite(value)) return;
-    setSilver(Math.min(SILVER_MAX, Math.max(0, Math.floor(value))));
-  }
-
-  function toggle(seat: Seat) {
-    if (seat.status !== "available") return;
-    setMessage("");
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(seat.seatCode)) next.delete(seat.seatCode);
-      else next.add(seat.seatCode);
-      return next;
+            // Only one seat can be selected: picking another seat replaces the
+            // current one, and clicking the selected seat again unselects it.
+            setSeats((currentSeats) =>
+              currentSeats.map((current) =>
+                current._id.toString() === seat._id.toString()
+                  ? { ...current, selected: !current.selected }
+                  : { ...current, selected: false }
+              )
+            )
+        }}
+        />;
     });
   }
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (selectedSeats.length === 0 && silver === 0) {
-      setMessage("Please select at least one seat or Silver ticket.");
-      return;
+  async function onSubmit(event:SubmitEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (getSelectedSeats().length !== 1) {
+      setMessage("Please select one seat.")
+      return
     }
 
-    const formData = new FormData(event.currentTarget);
-    formData.append("seats", JSON.stringify(selectedSeats.map((seat) => seat.seatCode)));
-    formData.append("silver", String(silver));
+    const formData = new FormData(event.currentTarget)
+    const seatCodes = getSelectedSeats().map((seat) => seat._id)
+    formData.append('seats', JSON.stringify(seatCodes))
+    const response = await fetch('/api/tickets', {
+        method: 'POST',
+        body: formData
+    })
 
-    setSubmitting(true);
-    try {
-      const response = await fetch("/api/tickets", { method: "POST", body: formData });
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        if (response.status === 409) {
-          setMessage(
-            `${data.error ?? "Some seats are no longer available."} Seat map updated; please choose again.`
-          );
-          await loadSeats();
-        } else {
-          setMessage(data.error ?? "Failed to create ticket.");
-        }
-        return;
-      }
-      setLoading(true);
-      router.push(`/ticket/${data.id}`);
-    } catch (error) {
-      console.error(error);
-      setMessage("Failed to create ticket.");
-    } finally {
-      setSubmitting(false);
+    if (!response.ok) {
+        // e.g. this email already has a seat, or the seat was just taken
+        setMessage(data.error ?? "Failed to create ticket.")
+        return
     }
+
+    router.push(`/ticket/${data.id}`);
   }
+
 
   if (loading) {
     return <div className="p-4">Loading...</div>;
   }
 
-  const width = GRID_COLS * CELL + (GRID_COLS - 1) * GAP;
-
   return (
     <>
       <h3 className="text-lg font-semibold p-4">{title}</h3>
-      <div className="rounded-lg border bg-neutral-900 p-4 text-neutral-100">
-        <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2 text-xs">
-          <LegendItem className="bg-slate-200">Platinum ₱250 ({remaining.PLATINUM} left)</LegendItem>
-          <LegendItem className="bg-amber-400">Gold ₱150 ({remaining.GOLD} left)</LegendItem>
-          <LegendItem className="border border-dashed border-neutral-400 bg-neutral-800">Silver ₱100 (standing)</LegendItem>
-          <LegendItem className="bg-fuchsia-900 opacity-60">VIP (reserved)</LegendItem>
-          <LegendItem className="bg-blue-500">Your selection</LegendItem>
-          <LegendItem className="bg-orange-500">On hold</LegendItem>
-          <LegendItem className="bg-neutral-700">Booked</LegendItem>
-        </div>
+      <div className="border rounded-lg overflow-hidden">
+        <div className="relative w-full overflow-auto">
 
-        <div className="overflow-x-auto pb-2">
-          <div
-            className="mx-auto grid"
-            style={{
-              width,
-              gridTemplateColumns: `repeat(${GRID_COLS}, ${CELL}px)`,
-              gridTemplateRows: `repeat(${GRID_ROWS}, ${CELL}px)`,
-              gap: GAP,
-            }}
-          >
-            <Label x={6} y={0} w={17} className="rounded-md bg-neutral-700 text-sm text-neutral-200">
-              Stage
-            </Label>
+          <p className="p-2 text-sm">You can book one seat per email address.</p>
 
-            <Label x={0} y={1} w={5} className="text-amber-400">Gold</Label>
-            <Label x={24} y={1} w={5} className="text-amber-400">Gold</Label>
-
-            <Label x={5} y={4} w={1} className="text-fuchsia-300">VIP</Label>
-            <Label x={5} y={8} w={1} className="text-slate-300">Plat.</Label>
-            <Label x={5} y={15} w={1} className="text-amber-400">Gold</Label>
-
-            <Label x={11} y={11} className="text-neutral-400">Gate</Label>
-            <Label x={17} y={11} className="text-neutral-400">Gate</Label>
-            <Label x={11} y={18} className="text-neutral-400">Gate</Label>
-            <Label x={17} y={18} className="text-neutral-400">Gate</Label>
-
-            <div
-              style={place(SILVER_AREA.x, SILVER_AREA.y, SILVER_AREA.w, SILVER_AREA.h)}
-              className={clsx(
-                "flex items-center justify-center gap-4 rounded-md border-2 px-3",
-                silver > 0
-                  ? "border-blue-400 bg-blue-500/30"
-                  : "border-dashed border-neutral-500 bg-neutral-800"
-              )}
-            >
-              <div className="text-center text-xs font-bold uppercase tracking-widest text-neutral-200">
-                Silver · ₱{SILVER_PRICE} · Standing
-                <div className="text-[10px] font-normal normal-case tracking-normal text-neutral-400">
-                  No seat numbers, no limit per booking
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  aria-label="Remove one Silver ticket"
-                  onClick={() => changeSilver(silver - 1)}
-                  className="h-8 w-8 rounded-md bg-neutral-700 text-lg leading-none hover:bg-neutral-600"
-                >
-                  −
-                </button>
-                <input
-                  type="number"
-                  min={0}
-                  max={SILVER_MAX}
-                  value={silver}
-                  aria-label="Number of Silver tickets"
-                  onChange={(e) => changeSilver(Number(e.target.value))}
-                  className="h-8 w-20 rounded-md bg-white text-center text-sm text-black"
-                />
-                <button
-                  type="button"
-                  aria-label="Add one Silver ticket"
-                  onClick={() => changeSilver(silver + 1)}
-                  className="h-8 w-8 rounded-md bg-neutral-700 text-lg leading-none hover:bg-neutral-600"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {seats.map((seat) => (
-              <SeatButton
-                key={seat.seatCode}
-                seat={seat}
-                selected={selected.has(seat.seatCode)}
-                onClick={() => toggle(seat)}
-              />
-            ))}
+          <div className="grid grid-cols-5 gap-2">
+            {seatList()}
           </div>
+
+          <p className={clsx(
+            "text-red-500", {
+            "hidden": message === "",
+          })}>{message}</p>
+
+          <form onSubmit={onSubmit}>
+            <input className="border rounded-lg text-black" type="text" name="name" placeholder="Name" />
+            <input className="border rounded-lg text-black" type="text" name="studentNum" placeholder="Student Number" />
+            <input className="border rounded-lg text-black" type="email" name="email" placeholder="Email" />
+            <button type="submit">Submit</button>
+         </form>
+
         </div>
-
-        <p className="mt-3 text-center text-xs text-neutral-400">
-          Seat numbers on the left and right Gold blocks count from the aisle side (1) outward.
-        </p>
-      </div>
-
-      <div className="mt-4 rounded-lg border border-[#652DC1] bg-black p-5 text-[#652DC1]">
-        <h4 className="mb-3 text-sm font-bold uppercase tracking-widest">Your tickets</h4>
-
-        {ticketLines.length === 0 && silver === 0 ? (
-          <p className="mb-4 text-sm opacity-70">Nothing selected yet.</p>
-        ) : (
-          <ul className="mb-4 space-y-1 text-sm">
-            {ticketLines.map((line) => (
-              <li key={line.name} className="flex justify-between gap-4">
-                <span>
-                  <span className="font-semibold">{line.name}:</span>{" "}
-                  {line.labels.join(", ")}
-                </span>
-                <span>₱{line.subtotal}</span>
-              </li>
-            ))}
-            {silver > 0 && (
-              <li className="flex justify-between gap-4">
-                <span>
-                  <span className="font-semibold">Silver (standing):</span> ×{silver}
-                </span>
-                <span>₱{silver * SILVER_PRICE}</span>
-              </li>
-            )}
-            <li className="flex justify-between gap-4 border-t border-[#652DC1] pt-2 font-bold">
-              <span>Total</span>
-              <span>₱{totalPrice}</span>
-            </li>
-          </ul>
-        )}
-
-        <p className={clsx("mb-3 text-sm text-red-500", { hidden: message === "" })}>{message}</p>
-
-        <form onSubmit={onSubmit} className="space-y-3">
-          <label className="block text-sm font-semibold">
-            Name
-            <input type="text" name="name" required className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
-          </label>
-          <label className="block text-sm font-semibold">
-            Student Number
-            <input type="text" name="studentNum" inputMode="numeric" pattern="[0-9]*" required className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
-          </label>
-          <label className="block text-sm font-semibold">
-            Email
-            <input type="email" name="email" required className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
-          </label>
-          <button
-            type="submit"
-            disabled={submitting || offline || (selectedSeats.length === 0 && silver === 0)}
-            className="w-full rounded-lg bg-[#652DC1] px-4 py-2 font-semibold text-[#8B9FEE] hover:bg-[#7A3FE0] disabled:opacity-50"
-          >
-            {submitting ? "Booking..." : "Submit"}
-          </button>
-        </form>
       </div>
     </>
   );
