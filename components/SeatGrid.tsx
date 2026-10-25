@@ -412,3 +412,6 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
           </button>
         </form>
       </div>
+    </>
+  );
+}
