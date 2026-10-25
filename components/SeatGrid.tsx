@@ -169,7 +169,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
       return {
         name,
         labels: list.map((s) => s.label),
-        subtotal: list.reduce((t, s) => t + s.price, 0),
+        subtotal: list.reduce((t, s) => t + TIER_PRICE[s.tier], 0),
       };
     })
     .filter((line) => line.labels.length > 0);
