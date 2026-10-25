@@ -81,17 +81,11 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
         key={seat._id.toString()}
         onClick={() => {
             if (seat.status !== "available") return;
-            setMessage("");
 
-            // Only one seat can be selected: picking another seat replaces the
-            // current one, and clicking the selected seat again unselects it.
-            setSeats((currentSeats) =>
-              currentSeats.map((current) =>
-                current._id.toString() === seat._id.toString()
-                  ? { ...current, selected: !current.selected }
-                  : { ...current, selected: false }
-              )
-            )
+            setSeats((currentSeats) => 
+            currentSeats.map((currentSeats) => 
+                currentSeats._id.toString() === seat._id.toString() ? {...currentSeats, selected: !currentSeats.selected} : currentSeats)
+          )
         }}
         />;
     });
@@ -99,11 +93,6 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
 
   async function onSubmit(event:SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
-
-    if (getSelectedSeats().length !== 1) {
-      setMessage("Please select one seat.")
-      return
-    }
 
     const formData = new FormData(event.currentTarget)
     const seatCodes = getSelectedSeats().map((seat) => seat._id)
@@ -113,14 +102,11 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
         body: formData
     })
 
-    const data = await response.json();
-
     if (!response.ok) {
-        // e.g. this email already has a seat, or the seat was just taken
-        setMessage(data.error ?? "Failed to create ticket.")
-        return
+        console.error("Failed to create ticket.")
     }
 
+    const data = await response.json();
     router.push(`/ticket/${data.id}`);
   }
 
@@ -135,14 +121,12 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
       <div className="border rounded-lg overflow-hidden">
         <div className="relative w-full overflow-auto">
 
-          <p className="p-2 text-sm">You can book one seat per email address.</p>
-
           <div className="grid grid-cols-5 gap-2">
             {seatList()}
           </div>
 
           <p className={clsx(
-            "text-red-500", {
+            "text-red", {
             "hidden": message === "",
           })}>{message}</p>
 
@@ -158,3 +142,5 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
     </>
   );
 }
+
+
