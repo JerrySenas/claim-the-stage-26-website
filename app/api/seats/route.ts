@@ -1,9 +1,15 @@
 // app/api/seats/route.ts
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { expireOverdueTickets } from "@/lib/expireTickets";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    // Free seats whose 10-minute reservation has run out before showing the map.
+    await expireOverdueTickets().catch((e) => console.error("expire failed", e));
+
     const client = await clientPromise;
     const db = client.db("seats"); // Uses the database from your connection string
     const collection = db.collection("seats"); // Replace with your actual collection name
