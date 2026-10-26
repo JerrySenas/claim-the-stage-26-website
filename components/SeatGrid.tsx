@@ -356,7 +356,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
                 <span>₱{silver * SILVER_PRICE}</span>
               </li>
             )}
-            <li className="flex justify-between gap-4 border-t border-[#652DC1] pt-2 font-bold">
+            <li className="flex justify-between gap-4 border-t border-[#E03FD8] pt-2 font-bold">
               <span>Total</span>
               <span>₱{totalPrice}</span>
             </li>
@@ -368,20 +368,20 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
         <form onSubmit={onSubmit} className="space-y-3">
           <label className="block text-sm font-semibold">
             Name
-            <input type="text" name="name" required className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
+            <input type="text" name="name" required className="mt-1 w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
           </label>
           <label className="block text-sm font-semibold">
             Student Number
-            <input type="text" name="studentNum" inputMode="numeric" pattern="[0-9]*" required className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
+            <input type="text" name="studentNum" inputMode="numeric" pattern="[0-9]*" required className="mt-1 w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
           </label>
           <label className="block text-sm font-semibold">
             Email
-            <input type="email" name="email" required className="mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
+            <input type="email" name="email" required className="mt-1 w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
           </label>
           <button
             type="submit"
             disabled={submitting || offline || (selectedSeats.length === 0 && silver === 0)}
-            className="w-full rounded-lg bg-[#652DC1] px-4 py-2 font-semibold text-[#8B9FEE] hover:bg-[#7A3FE0] disabled:opacity-50"
+            className="w-full rounded-lg bg-[#E03FD8] px-4 py-2 font-semibold text-[#8B9FEE] hover:bg-[#7A3FE0] disabled:opacity-50"
           >
             {submitting ? "Booking..." : "Submit"}
           </button>
