@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { PayMongo } from "josu-paymongo";
 import { console } from "inspector";
 import { grandTotal, type SeatDoc } from "@/lib/pricing";
-import { expireOverdueTickets } from "@/lib/expireTickets";
+//import { expireOverdueTickets } from "@/lib/expireTickets";
 
 interface Seat {
   _id: string;
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       );
     }
 
-    await expireOverdueTickets().catch((e) => console.error("expire failed", e));
+    //await expireOverdueTickets().catch((e) => console.error("expire failed", e));
 
     const client = await clientPromise;
     const tickets = await client
@@ -234,7 +234,7 @@ const paymongo = PayMongo.getInstance({
 export async function pay(id: string) {
   if (!ObjectId.isValid(id)) throw new Error("Invalid ticket ID");
 
-  await expireOverdueTickets();
+  //await expireOverdueTickets();
 
   const client = await clientPromise;
   const ticket = await client
