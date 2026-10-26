@@ -234,20 +234,18 @@ const paymongo = PayMongo.getInstance({
 export async function pay(id: string) {
   if (!ObjectId.isValid(id)) throw new Error("Invalid ticket ID");
 
-  //await expireOverdueTickets();
-
   const client = await clientPromise;
   const ticket = await client
     .db("tickets")
     .collection("tickets")
     .findOne({ _id: new ObjectId(id), status: "pending" });
 
-  if (!ticket) throw new Error("Ticket not found, expired, or already confirmed");
+  if (!ticket) throw new Error("Ticket not found or already confirmed");
 
   const intent = await paymongo.paymentIntents.create({
     amount: ticket.price * 100, // PHP → centavos
     currency: "PHP",
-    paymentMethodAllowed: ["gcash"], // GCash only for now
+    paymentMethodAllowed: ["qrph"], // GCash only for now
     description: `Ticket ${id}`,
     metadata: { ticketId: id }, // critical for webhook lookup
   });
