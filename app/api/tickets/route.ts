@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { PayMongo } from "josu-paymongo";
-import { console } from "inspector";
 import { grandTotal, type SeatDoc } from "@/lib/pricing";
 //import { expireOverdueTickets } from "@/lib/expireTickets";
 
