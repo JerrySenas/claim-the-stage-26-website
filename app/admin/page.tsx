@@ -42,6 +42,25 @@ async function deleteSeatAction(formData: FormData) {
   revalidatePath("/admin");
 }
 
+const SEAT_STATUSES = ["available", "held", "occupied", "reserved"] as const;
+
+async function updateSeatStatusAction(formData: FormData) {
+  "use server";
+  const id = formData.get("id") as string;
+  const status = formData.get("status") as string;
+  if (!ObjectId.isValid(id)) return;
+  if (!(SEAT_STATUSES as readonly string[]).includes(status)) return;
+
+  const client = await clientPromise;
+  await client.db("seats").collection("seats").updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { status } }
+  );
+  // The seat map reads the same collection, so refresh the pages that show it.
+  revalidatePath("/admin");
+  revalidatePath("/book");
+}
+
 async function resetSeatsAction() {
   "use server";
   const client = await clientPromise;
@@ -121,12 +140,40 @@ export default async function AdminPage({
               <div>
                 <strong>{seat.seatCode}</strong>
                 <span className="ml-3">₱{seat.price}</span>
-                <span className="ml-3 text-gray-500">{seat.status}</span>
+                <span
+                  className={`ml-3 rounded px-2 py-0.5 text-xs font-semibold ${
+                    seat.status === "available"
+                      ? "bg-amber-400 text-amber-950"
+                      : seat.status === "held"
+                        ? "bg-orange-500 text-orange-950"
+                        : seat.status === "occupied"
+                          ? "bg-neutral-700 text-neutral-300 line-through"
+                          : "bg-fuchsia-900 text-fuchsia-200"
+                  }`}
+                >
+                  {seat.status}
+                </span>
               </div>
-              <form action={deleteSeatAction}>
-                <input type="hidden" name="id" value={seat._id.toString()} />
-                <button type="submit" className="rounded bg-red-600 px-3 py-1 text-white">Delete</button>
-              </form>
+              <div className="flex items-center gap-2">
+                <form action={updateSeatStatusAction} className="flex items-center gap-2">
+                  <input type="hidden" name="id" value={seat._id.toString()} />
+                  <select
+                    name="status"
+                    defaultValue={seat.status}
+                    aria-label={`Status of seat ${seat.seatCode}`}
+                    className="rounded border px-2 py-1"
+                  >
+                    {SEAT_STATUSES.map((st) => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                  <button type="submit" className="rounded bg-blue-600 px-3 py-1 text-white">Edit</button>
+                </form>
+                <form action={deleteSeatAction}>
+                  <input type="hidden" name="id" value={seat._id.toString()} />
+                  <button type="submit" className="rounded bg-red-600 px-3 py-1 text-white">Delete</button>
+                </form>
+              </div>
             </div>
           ))}
         </div>
