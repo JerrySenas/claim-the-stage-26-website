@@ -138,7 +138,7 @@ export async function POST(request: Request) {
     }
 
     // Release seats from overdue reservations so they can be booked again.
-    await expireOverdueTickets();
+    //await expireOverdueTickets();
 
     const client = await clientPromise;
     const seatDB = client.db("seats").collection<SeatDoc>("seats");
