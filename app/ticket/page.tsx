@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, type FormEvent } from "react";
 
 interface Ticket {
   _id: string;
@@ -8,96 +8,118 @@ interface Ticket {
   studentNum: string;
   email: string;
   seats: string[];
+  silver?: number;
   price: number;
   status: string;
 }
 
-export default function TicketsPage() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [search, setSearch] = useState("");
+const STATUS_STYLE: Record<string, string> = {
+  confirmed: "border-green-500 text-green-400",
+  pending: "border-yellow-500 text-yellow-400",
+  expired: "border-red-500 text-red-400",
+};
+
+const inputClass =
+  "mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] placeholder:text-[#652DC1]/40 focus:outline-none focus:ring-2 focus:ring-[#652DC1]";
+
+export default function YourTicketsPage() {
+  const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const query = search.trim();
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "").trim();
+    const studentNum = String(form.get("studentNum") ?? "").trim();
 
-    // Nothing typed → clear results, don't hit the API
-    if (!query) {
-      setTickets([]);
-      setLoading(false);
-      setError("");
-      return;
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      setError("");
-
-      try {
-        const response = await fetch(
-          `/api/tickets?q=${encodeURIComponent(query)}`,
-          { signal: controller.signal }
-        );
-        if (!response.ok) throw new Error("Failed to fetch tickets");
-
-        const data: Ticket[] = await response.json();
-        setTickets(data);
-      } catch (err) {
-        if ((err as Error).name === "AbortError") return;
-        console.error(err);
-        setError("Could not load tickets. Please try again.");
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    setError("");
+    setTickets(null);
+    try {
+      const params = new URLSearchParams({ email, studentNum });
+      const response = await fetch(`/api/tickets?${params}`, { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error ?? "Could not load your tickets.");
+        return;
       }
-    }, 300);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [search]);
-
-  const hasQuery = search.trim().length > 0;
+      setTickets(data);
+    } catch (err) {
+      console.error(err);
+      setError("Could not load your tickets. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
-      <h1 className="mb-6 text-3xl font-bold">Tickets</h1>
+    <main className="mx-auto max-w-xl p-4">
+      <h1 className="mb-4 text-2xl font-bold text-[#652DC1]">Your Tickets</h1>
 
-      <input
-        type="search"
-        placeholder="Search by name, email, student number, or ticket ID..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="mb-6 w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
-      />
+      <form
+        onSubmit={onSubmit}
+        className="mb-6 flex flex-col gap-3 rounded-3xl border border-[#652DC1] bg-black p-5 text-sm font-semibold text-[#652DC1]"
+      >
+        <p className="font-normal text-neutral-400">
+          Enter the email and student number you booked with to see your tickets.
+        </p>
+        <label>
+          Student Number
+          <input type="text" name="studentNum" inputMode="numeric" pattern="[0-9]*" required className={inputClass} />
+        </label>
+        <label>
+          Email
+          <input type="email" name="email" required className={inputClass} />
+        </label>
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded-xl bg-[#652DC1] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#7a45d6] disabled:opacity-50"
+        >
+          {loading ? "Searching..." : "Show my tickets"}
+        </button>
+      </form>
 
-      {!hasQuery ? (
-        <p className="text-gray-500">Type to search tickets.</p>
-      ) : loading ? (
-        <p>Loading tickets...</p>
-      ) : error ? (
-        <p className="text-red-500">{error}</p>
-      ) : tickets.length === 0 ? (
-        <p className="text-gray-500">No tickets match your search.</p>
-      ) : (
+      {error && <p className="text-red-400">{error}</p>}
+
+      {tickets && tickets.length === 0 && (
+        <p className="text-neutral-400">
+          No tickets found for that email and student number.
+        </p>
+      )}
+
+      {tickets && tickets.length > 0 && (
         <div className="space-y-3">
-          {tickets.map((ticket) => (
-            <a
-              key={ticket._id}
-              href={`/ticket/${ticket._id}`}
-              className="block rounded-lg border p-4 transition hover:bg-gray-50"
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold">{ticket.name}</h2>
-                <span className="text-sm text-gray-500">{ticket.status}</span>
-              </div>
-              <p className="text-sm text-gray-600">{ticket.email}</p>
-              <p className="mt-2 text-sm">Student No: {ticket.studentNum}</p>
-              <p className="mt-1 text-sm">Seats: {ticket.seats.join(", ")}</p>
-              <p className="mt-1 font-medium">₱{ticket.price}</p>
-            </a>
-          ))}
+          {tickets.map((ticket) => {
+            const items = [
+              ...ticket.seats,
+              ...((ticket.silver ?? 0) > 0 ? [`Silver × ${ticket.silver}`] : []),
+            ];
+            return (
+              <a
+                key={ticket._id}
+                href={`/ticket/${ticket._id}`}
+                className="block rounded-3xl border border-[#652DC1] bg-black p-5 transition-colors hover:bg-[#652DC1]/10"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="font-semibold text-[#652DC1]">{ticket.name}</h2>
+                  <span
+                    className={`rounded-full border px-3 py-0.5 text-xs font-bold uppercase tracking-wider ${
+                      STATUS_STYLE[ticket.status] ?? "border-neutral-500 text-neutral-400"
+                    }`}
+                  >
+                    {ticket.status}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-[#652DC1]">Ticket: {items.join(", ") || "—"}</p>
+                <p className="mt-1 text-lg font-bold text-[#652DC1]">₱{ticket.price}</p>
+                <p className="mt-1 text-xs text-neutral-400">
+                  {ticket.status === "pending" ? "Tap to pay before it expires" : "Tap to view"}
+                </p>
+              </a>
+            );
+          })}
         </div>
       )}
     </main>
