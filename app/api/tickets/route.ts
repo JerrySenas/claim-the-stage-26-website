@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { PayMongo } from "josu-paymongo";
 import { console } from "inspector";
 import { grandTotal, type SeatDoc } from "@/lib/pricing";
+import { expireOverdueTickets } from "@/lib/expireTickets";
 
 interface Seat {
   _id: string;
@@ -115,6 +116,9 @@ export async function POST(request: Request) {
       );
     }
 
+    // Release seats from overdue reservations so they can be booked again.
+    await expireOverdueTickets();
+
     const client = await clientPromise;
     const seatDB = client.db("seats").collection<SeatDoc>("seats");
     const ticketDB = client.db("tickets").collection("tickets");
@@ -208,13 +212,15 @@ const paymongo = PayMongo.getInstance({
 export async function pay(id: string) {
   if (!ObjectId.isValid(id)) throw new Error("Invalid ticket ID");
 
+  await expireOverdueTickets();
+
   const client = await clientPromise;
   const ticket = await client
     .db("tickets")
     .collection("tickets")
     .findOne({ _id: new ObjectId(id), status: "pending" });
 
-  if (!ticket) throw new Error("Ticket not found or already confirmed");
+  if (!ticket) throw new Error("Ticket not found, expired, or already confirmed");
 
   const intent = await paymongo.paymentIntents.create({
     amount: ticket.price * 100, // PHP → centavos
