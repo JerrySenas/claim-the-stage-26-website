@@ -8,7 +8,7 @@ import clsx from "clsx";
 const links = [
   { href: "/", label: "Home" },
   { href: "/book", label: "Book Tickets" },
-  { href: "/ticket", label: "Search Ticket" },
+  { href: "/ticket", label: "Your Tickets" },
 ];
 
 export default function Navbar() {
