@@ -4,19 +4,38 @@ import { ObjectId } from "mongodb";
 import { PayMongo } from "josu-paymongo";
 import { console } from "inspector";
 import { grandTotal, type SeatDoc } from "@/lib/pricing";
+import { expireOverdueTickets } from "@/lib/expireTickets";
 
 interface Seat {
   _id: string;
   seatCode: string;
 }
 
-export async function GET() {
+// "Your Tickets" lookup: a client only gets their own tickets, and only by giving
+// BOTH the email and student number they booked with. Listing everything is not allowed.
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const email = (searchParams.get("email") ?? "").trim();
+    const studentNum = (searchParams.get("studentNum") ?? "").trim();
+
+    if (!email || !/^[0-9]+$/.test(studentNum)) {
+      return NextResponse.json(
+        { error: "Enter the email and student number you booked with." },
+        { status: 400 }
+      );
+    }
+
+    await expireOverdueTickets().catch((e) => console.error("expire failed", e));
+
     const client = await clientPromise;
-    const db = client.db("tickets");
-    const tickets = await db
+    const tickets = await client
+      .db("tickets")
       .collection("tickets")
-      .find({})
+      // strength 2 = case-insensitive, so Name@Gmail.com matches name@gmail.com
+      .find({ email, studentNum }, { collation: { locale: "en", strength: 2 } })
+      .sort({ createdAt: -1 })
+      .project({ _id: 1, name: 1, studentNum: 1, email: 1, seats: 1, silver: 1, price: 1, status: 1, expiresAt: 1 })
       .toArray();
 
     return NextResponse.json(tickets);
@@ -55,6 +74,7 @@ export async function POST(request: Request) {
     const name = formData.get("name");
     const email = formData.get("email");
     const seatsJSON = formData.get("seats");
+    const studentNum = formData.get("studentNum");
     const silverValue = formData.get("silver") ?? "0";
 
     if (
@@ -62,11 +82,13 @@ export async function POST(request: Request) {
       !name.trim() ||
       typeof email !== "string" ||
       !email.trim() ||
+      typeof studentNum !== "string" ||
+      !/^[0-9]+$/.test(studentNum.trim()) ||
       typeof seatsJSON !== "string" ||
       typeof silverValue !== "string"
     ) {
       return NextResponse.json(
-        { error: "Name, email, seats, and silver are required." },
+        { error: "Name, student number (digits only), email, and ticket are required." },
         { status: 400 }
       );
     }
@@ -114,6 +136,9 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Release seats from overdue reservations so they can be booked again.
+    await expireOverdueTickets();
 
     const client = await clientPromise;
     const seatDB = client.db("seats").collection<SeatDoc>("seats");
@@ -172,6 +197,7 @@ export async function POST(request: Request) {
       const result = await ticketDB.insertOne({
         name: name.trim(),
         email: email.trim(),
+        studentNum: studentNum.trim(),
         seats: selectedSeats.map((seat) => seat.seatCode),
         silver,
         price: totalPrice,
@@ -208,13 +234,15 @@ const paymongo = PayMongo.getInstance({
 export async function pay(id: string) {
   if (!ObjectId.isValid(id)) throw new Error("Invalid ticket ID");
 
+  await expireOverdueTickets();
+
   const client = await clientPromise;
   const ticket = await client
     .db("tickets")
     .collection("tickets")
     .findOne({ _id: new ObjectId(id), status: "pending" });
 
-  if (!ticket) throw new Error("Ticket not found or already confirmed");
+  if (!ticket) throw new Error("Ticket not found, expired, or already confirmed");
 
   const intent = await paymongo.paymentIntents.create({
     amount: ticket.price * 100, // PHP → centavos
