@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-async function addSeatAction(formData: FormData) {
+/*async function addSeatAction(formData: FormData) {
   "use server";
   const seatCode = formData.get("seatCode") as string;
   const price = Number(formData.get("price"));
@@ -16,7 +16,7 @@ async function addSeatAction(formData: FormData) {
     status: "available",
   });
   revalidatePath("/admin");
-}
+}*/
 
 async function deleteTicketAction(formData: FormData) {
   "use server";
@@ -112,15 +112,6 @@ export default async function AdminPage({
   return (
     <main className="mx-auto max-w-5xl space-y-10 p-8">
       <h1 className="text-3xl font-bold">Admin / Testing</h1>
-
-      <section className="rounded-lg border p-6">
-        <h2 className="mb-4 text-xl font-semibold">Add Seat</h2>
-        <form action={addSeatAction} className="flex gap-3">
-          <input name="seatCode" placeholder="A1" required className="rounded border px-3 py-2" />
-          <input name="price" type="number" placeholder="Price" min="0" required className="rounded border px-3 py-2" />
-          <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">Add Seat</button>
-        </form>
-      </section>
 
       <section className="rounded-lg border p-6">
         <h2 className="mb-4 text-xl font-semibold">Seats ({seats.length})</h2>
