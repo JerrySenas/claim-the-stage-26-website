@@ -1,6 +1,7 @@
 import { getById } from "@/app/api/tickets/route";
 import { ObjectId } from "mongodb";
 import { notFound } from "next/navigation";
+import { expireOverdueTickets } from "@/lib/expireTickets";
 import PayButton from "./PayButton";
 import Countdown from "./Countdown";
 
@@ -20,6 +21,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 const STATUS_STYLE: Record<string, string> = {
   confirmed: "border-green-500 text-green-400",
   pending: "border-yellow-500 text-yellow-400",
+  expired: "border-red-500 text-red-400",
 };
 
 export default async function TicketPage({
@@ -30,6 +32,9 @@ export default async function TicketPage({
   const { id } = await params;
 
   if (!ObjectId.isValid(id)) notFound();
+
+  // Expire overdue reservations first so this page never shows a stale "pending".
+  await expireOverdueTickets().catch((e) => console.error("expire failed", e));
 
   const ticket = await (await getById(id)).json();
 
@@ -78,6 +83,12 @@ export default async function TicketPage({
           </Row>
         </dl>
       </div>
+
+      {ticket.status === "expired" && (
+        <div className="w-full rounded-2xl border border-red-500 bg-black p-4 text-center text-red-400">
+          This reservation expired and the seat was released. Please book again.
+        </div>
+      )}
 
       {ticket.status === "pending" && expiresAt && (
         <Countdown expiresAt={expiresAt} />
