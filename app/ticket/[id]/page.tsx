@@ -1,5 +1,6 @@
 import { getById } from "@/app/api/tickets/route";
 import { ObjectId } from "mongodb";
+import { displayName } from "@/lib/name";
 import { notFound } from "next/navigation";
 import PayButton from "./PayButton";
 import Countdown from "./Countdown";
@@ -66,7 +67,7 @@ export default async function TicketPage({
         </div>
 
         <dl>
-          <Row label="Name">{ticket.name}</Row>
+          <Row label="Name">{displayName(ticket)}</Row>
           <Row label="Student Number">{ticket.studentNum || "—"}</Row>
           <Row label="Email">{ticket.email}</Row>
           <Row label="Ticket">{items.length ? items.join(", ") : "—"}</Row>
