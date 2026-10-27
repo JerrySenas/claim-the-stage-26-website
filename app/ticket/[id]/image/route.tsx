@@ -2,6 +2,7 @@
 import { ImageResponse } from "next/og";
 import { getById } from "@/app/api/tickets/route";
 import { ObjectId } from "mongodb";
+import { displayName } from "@/lib/name";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,8 @@ export async function GET(
     const templateData = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
     templateSvg
     )}`;
+
+    const fullName = displayName(ticket);
 
     const seatLabels = ticket.seats.length > 0
       ? ticket.seats.join(", ")
@@ -89,7 +92,7 @@ export async function GET(
             }}
           >
             <div style={{ display: "flex", top: 65 }}>
-              <span>{ticket.name}</span>
+              <span>{fullName}</span>
             </div>
 
             <div style={{ display: "flex", top: 70 }}>
@@ -138,7 +141,7 @@ export async function GET(
             }}
           >
             <div style={{ display: "flex", top: 130 }}>
-              {ticket.name}
+              {fullName}
             </div>
 
             <div style={{ display: "flex", top: 130 }}>
