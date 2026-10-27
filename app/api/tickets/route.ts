@@ -3,7 +3,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { PayMongo } from "josu-paymongo";
 import { grandTotal, type SeatDoc } from "@/lib/pricing";
-//import { expireOverdueTickets } from "@/lib/expireTickets";
+import { parseName, formatFullName } from "@/lib/name";
 
 interface Seat {
   _id: string;
@@ -75,6 +75,15 @@ export async function POST(request: Request) {
     const seatsJSON = formData.get("seats");
     const studentNum = formData.get("studentNum");
     const silverValue = formData.get("silver") ?? "0";
+
+    const parsedName = parseName({
+      surname: formData.get("surname"),
+      firstName: formData.get("firstName"),
+      middleInitial: formData.get("middleInitial"),
+    });
+    if (!parsedName.ok) {
+      return NextResponse.json({ error: parsedName.error }, { status: 400 });
+    }
 
     if (
       typeof name !== "string" ||
@@ -194,7 +203,8 @@ export async function POST(request: Request) {
     try {
       const now = new Date();
       const result = await ticketDB.insertOne({
-        name: name.trim(),
+        ...parsedName.value, // surname, firstName, middleInitial
+        name: formatFullName(parsedName.value), // combined, for admin page and lookups
         email: email.trim(),
         studentNum: studentNum.trim(),
         seats: selectedSeats.map((seat) => seat.seatCode),
@@ -202,7 +212,8 @@ export async function POST(request: Request) {
         price: totalPrice,
         status: "pending",
         createdAt: now,
-        // The /api/cron job deletes pending tickets past this time and frees their seats.
+        // Past this time the ticket is marked "expired" (by /api/cron or the next
+        // page load) and its held seats are made available again.
         expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
       });
 
