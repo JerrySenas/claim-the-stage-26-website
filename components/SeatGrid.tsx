@@ -392,7 +392,10 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
           <button
             type="submit"
             disabled={submitting || offline || (selectedSeats.length === 0 && silver === 0)}
-            className="w-full rounded-lg bg-[#7A3FE0] px-4 py-2 font-semibold text-[#e6ccff] enabled:hover:bg=[#8fabff] disabled:cursor-not-allowed disabled:opacity-50"
+            className={clsx(
+              "w-full rounded-lg bg-[#7A3FE0] px-4 py-2 font-semibold text-[#e6ccff],
+              canSubmit ? "hover:bg=[#8fabff]" : "cursor-not-allowed opacity-50"
+              )}
           >
             {submitting ? "Booking..." : "Submit"}
           </button>
