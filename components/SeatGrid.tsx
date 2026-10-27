@@ -367,7 +367,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
         <p className={clsx("mb-3 text-sm text-red-500", { hidden: message === "" })}>{message}</p>
 
         <form onSubmit={onSubmit} className="space-y-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_5rem]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_5rem] bg-[#363740]">
             <label className="block text-sm font-semibold">
               Surname
               <input type="text" name="surname" onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase("en"); }} required maxLength={NAME_MAX} autoComplete="family-name" pattern={NAME_PATTERN} title="Capital letters (A-Z, Ñ) and spaces only" className="mt-1 uppercase w-full rounded-lg border border-[#B19CD9] bg-black px-3 py-2 font-normal text-[#B19CD9] focus:outline-none focus:ring-2 focus:ring-[#e8e4f0]" />
