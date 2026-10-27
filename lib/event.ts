@@ -5,7 +5,7 @@
 export const EVENT = {
   name: "Claim the Stage",
   tagline: "Battle of the Bands",
-  venue: "Digital Campus Grounds",
+  venue: "NOMO - Parking Lot",
   dateLabel: "November 25, 2026",
   description:
     "Welcome to a pioneered music competition organized within St. Dominic College of Asia, providing a local concert for different student bands to compete to be “the best band” within St. Dominic College of Asia!",
