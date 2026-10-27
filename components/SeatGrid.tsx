@@ -367,7 +367,15 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
 
         <form onSubmit={onSubmit} className="space-y-3">
           <label className="block text-sm font-semibold">
-            Name
+            Surname
+            <input type="text" name="name" required className="mt-1 w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
+          </label>
+          <label className="block text-sm font-semibold">
+            First Name
+            <input type="text" name="name" required className="mt-1 w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
+          </label>
+          <label className="block text-sm font-semibold">
+            Middle Initial 
             <input type="text" name="name" required className="mt-1 w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
           </label>
           <label className="block text-sm font-semibold">
