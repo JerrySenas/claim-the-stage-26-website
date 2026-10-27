@@ -378,7 +378,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
             </label>
             <label className="block text-sm font-semibold">
               M.I.
-              <input type="text" name="middleInitial" onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase("en"); }} maxLength={2} pattern={MI_PATTERN} title="1-2 letters (optional)" placeholder="Optional" className="mt-1 uppercase w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] placeholder:text-[#E03FD8]/40 focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
+              <input type="text" name="middleInitial" onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase("en"); }} maxLength={2} pattern={MI_PATTERN} title="1-2 letters (optional)" className="mt-1 uppercase w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] placeholder:text-[#E03FD8]/40 focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
             </label>
           </div>
           <label className="block text-sm font-semibold">
