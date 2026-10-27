@@ -20,7 +20,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 const inputClass =
-  "mt-1 w-full rounded-lg border border-[#652DC1] bg-black px-3 py-2 font-normal text-[#652DC1] placeholder:text-[#652DC1]/40 focus:outline-none focus:ring-2 focus:ring-[#652DC1]";
+  "mt-1 w-full rounded-lg border border-[#B19CD9] bg-black px-3 py-2 font-normal text-[#B19CD9] placeholder:text-[#B19CD9]/40 focus:outline-none focus:ring-2 focus:ring-[#B19CD9]";
 
 export default function YourTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
@@ -55,11 +55,11 @@ export default function YourTicketsPage() {
 
   return (
     <main className="mx-auto max-w-xl p-4">
-      <h1 className="mb-4 text-2xl font-bold text-[#652DC1]">Your Tickets</h1>
+      <h1 className="mb-4 text-2xl font-bold text-[#B19CD9]">Your Tickets</h1>
 
       <form
         onSubmit={onSubmit}
-        className="mb-6 flex flex-col gap-3 rounded-3xl border border-[#652DC1] bg-black p-5 text-sm font-semibold text-[#652DC1]"
+        className="mb-6 flex flex-col gap-3 rounded-3xl border border-[#B19CD9] bg-black p-5 text-sm font-semibold text-[#B19CD9]"
       >
         <p className="font-normal text-neutral-400">
           Enter the email and student number you booked with to see your tickets.
@@ -75,7 +75,7 @@ export default function YourTicketsPage() {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-xl bg-[#652DC1] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#7a45d6] disabled:opacity-50"
+          className="rounded-xl bg-[#B19CD9] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#7a45d6] disabled:opacity-50"
         >
           {loading ? "Searching..." : "Show my tickets"}
         </button>
@@ -100,10 +100,10 @@ export default function YourTicketsPage() {
               <a
                 key={ticket._id}
                 href={`/ticket/${ticket._id}`}
-                className="block rounded-3xl border border-[#652DC1] bg-black p-5 transition-colors hover:bg-[#652DC1]/10"
+                className="block rounded-3xl border border-[#B19CD9] bg-black p-5 transition-colors hover:bg-[#B19CD9]/10"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="font-semibold text-[#652DC1]">{ticket.name}</h2>
+                  <h2 className="font-semibold text-[#B19CD9]">{ticket.name}</h2>
                   <span
                     className={`rounded-full border px-3 py-0.5 text-xs font-bold uppercase tracking-wider ${
                       STATUS_STYLE[ticket.status] ?? "border-neutral-500 text-neutral-400"
@@ -112,8 +112,8 @@ export default function YourTicketsPage() {
                     {ticket.status}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-[#652DC1]">Ticket: {items.join(", ") || "—"}</p>
-                <p className="mt-1 text-lg font-bold text-[#652DC1]">₱{ticket.price}</p>
+                <p className="mt-2 text-sm text-[#B19CD9]">Ticket: {items.join(", ") || "—"}</p>
+                <p className="mt-1 text-lg font-bold text-[#B19CD9]">₱{ticket.price}</p>
                 <p className="mt-1 text-xs text-neutral-400">
                   {ticket.status === "pending" ? "Tap to pay before it expires" : "Tap to view"}
                 </p>
