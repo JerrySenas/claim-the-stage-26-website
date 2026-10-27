@@ -15,7 +15,7 @@ export default function Navbar() {
   const pathname = usePathname();
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-neutral-800 bg-black">
+    <nav className="sticky top-0 z-50 border-b border-neutral-800 bg-[#363740]">
       <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-4">
         <Link href="/" aria-label="Claim the Stage 2026 – Home" className="flex items-center">
           <Image
