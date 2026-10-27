@@ -333,7 +333,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
         </p>
       </div>
 
-      <div className="mt-4 rounded-lg border border-[#652DC1] bg-black p-5 text-[#652DC1]">
+      <div className="mt-4 rounded-lg border border-[#e8e4f0] bg-black p-5 text-[#e8e4f0]">
         <h4 className="mb-3 text-sm font-bold uppercase tracking-widest">Your tickets</h4>
 
         {ticketLines.length === 0 && silver === 0 ? (
@@ -357,7 +357,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
                 <span>₱{silver * SILVER_PRICE}</span>
               </li>
             )}
-            <li className="flex justify-between gap-4 border-t border-[#E03FD8] pt-2 font-bold">
+            <li className="flex justify-between gap-4 border-t border-[#B19CD9] pt-2 font-bold">
               <span>Total</span>
               <span>₱{totalPrice}</span>
             </li>
@@ -370,29 +370,29 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_5rem]">
             <label className="block text-sm font-semibold">
               Surname
-              <input type="text" name="surname" onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase("en"); }} required maxLength={NAME_MAX} autoComplete="family-name" pattern={NAME_PATTERN} title="Capital letters (A-Z, Ñ) and spaces only" className="mt-1 uppercase w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
+              <input type="text" name="surname" onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase("en"); }} required maxLength={NAME_MAX} autoComplete="family-name" pattern={NAME_PATTERN} title="Capital letters (A-Z, Ñ) and spaces only" className="mt-1 uppercase w-full rounded-lg border border-[#B19CD9] bg-black px-3 py-2 font-normal text-[#B19CD9] focus:outline-none focus:ring-2 focus:ring-[#e8e4f0]" />
             </label>
             <label className="block text-sm font-semibold">
               First name
-              <input type="text" name="firstName" onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase("en"); }} required maxLength={NAME_MAX} autoComplete="given-name" pattern={NAME_PATTERN} title="Capital letters (A-Z, Ñ) and spaces only" className="mt-1 uppercase w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
+              <input type="text" name="firstName" onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase("en"); }} required maxLength={NAME_MAX} autoComplete="given-name" pattern={NAME_PATTERN} title="Capital letters (A-Z, Ñ) and spaces only" className="mt-1 uppercase w-full rounded-lg border border-[#B19CD9] bg-black px-3 py-2 font-normal text-[#B19CD9] focus:outline-none focus:ring-2 focus:ring-[#e8e4f0]" />
             </label>
             <label className="block text-sm font-semibold">
               M.I.
-              <input type="text" name="middleInitial" onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase("en"); }} maxLength={2} pattern={MI_PATTERN} title="1-2 letters (optional)" className="mt-1 uppercase w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] placeholder:text-[#E03FD8]/40 focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
+              <input type="text" name="middleInitial" onInput={(e) => { e.currentTarget.value = e.currentTarget.value.toLocaleUpperCase("en"); }} maxLength={2} pattern={MI_PATTERN} title="1-2 letters (optional)" className="mt-1 uppercase w-full rounded-lg border border-[#B19CD9] bg-black px-3 py-2 font-normal text-[#B19CD9] placeholder:text-[#B19CD9]/40 focus:outline-none focus:ring-2 focus:ring-[#e8e4f0]" />
             </label>
           </div>
           <label className="block text-sm font-semibold">
             Student Number
-            <input type="text" name="studentNum" inputMode="numeric" pattern="[0-9]*" required className="mt-1 w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
+            <input type="text" name="studentNum" inputMode="numeric" pattern="[0-9]*" required className="mt-1 w-full rounded-lg border border-[#B19CD9] bg-black px-3 py-2 font-normal text-[#B19CD9] focus:outline-none focus:ring-2 focus:ring-[#e8e4f0]" />
           </label>
           <label className="block text-sm font-semibold">
             Email
-            <input type="email" name="email" required className="mt-1 w-full rounded-lg border border-[#E03FD8] bg-black px-3 py-2 font-normal text-[#E03FD8] focus:outline-none focus:ring-2 focus:ring-[#652DC1]" />
+            <input type="email" name="email" required className="mt-1 w-full rounded-lg border border-[#B19CD9] bg-black px-3 py-2 font-normal text-[#B19CD9] focus:outline-none focus:ring-2 focus:ring-[#e8e4f0]" />
           </label>
           <button
             type="submit"
             disabled={submitting || offline || (selectedSeats.length === 0 && silver === 0)}
-            className="w-full rounded-lg bg-[#E03FD8] px-4 py-2 font-semibold text-[#8B9FEE] hover:bg-[#7A3FE0] disabled:opacity-50"
+            className="w-full rounded-lg bg-[#B19CD9] px-4 py-2 font-semibold text-[#8B9FEE] hover:bg-[#7A3FE0] disabled:opacity-50"
           >
             {submitting ? "Booking..." : "Submit"}
           </button>
