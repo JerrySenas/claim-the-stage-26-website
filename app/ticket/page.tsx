@@ -75,7 +75,7 @@ export default function YourTicketsPage() {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-xl bg-[#B19CD9] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#7a45d6] disabled:opacity-50"
+          className="rounded-xl bg-[#B19CD9] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#e8e4f0] disabled:opacity-50"
         >
           {loading ? "Searching..." : "Show my tickets"}
         </button>
