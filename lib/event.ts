@@ -15,8 +15,8 @@ export const EVENT = {
 };
 
 export const TICKET_TYPES = [
-  { name: "VIP", price: null, note: "Front rows by the stage. Reserved, unfortunately not sold online." },
-  { name: "Platinum", price: 250, note: "Assigned seats, It has the highest opportunity for face-to-face interactions with the bands that will perform, offering the highest entertainment value." },
-  { name: "Gold", price: 150, note: "Assigned seats in the centre and both side blocks." },
   { name: "Silver", price: 100, note: "Standing area. Reusable placemats or carriable and foldable chairs are recommended for the audience." },
+  { name: "Gold", price: 150, note: "Assigned seats in the centre and both side blocks." },
+  { name: "Platinum", price: 250, note: "Assigned seats, It has the highest opportunity for face-to-face interactions with the bands that will perform, offering the highest entertainment value." },
+  { name: "VIP", price: null, note: "Front rows by the stage. Reserved, unfortunately not sold online." },
 ] as const;
