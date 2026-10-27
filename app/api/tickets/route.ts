@@ -25,8 +25,6 @@ export async function GET(request: Request) {
       );
     }
 
-    //await expireOverdueTickets().catch((e) => console.error("expire failed", e));
-
     const client = await clientPromise;
     const tickets = await client
       .db("tickets")
@@ -70,7 +68,6 @@ const SILVER_MAX = 6000; // Set this to your actual configured limit.
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
-    const name = formData.get("name");
     const email = formData.get("email");
     const seatsJSON = formData.get("seats");
     const studentNum = formData.get("studentNum");
@@ -86,8 +83,6 @@ export async function POST(request: Request) {
     }
 
     if (
-      typeof name !== "string" ||
-      !name.trim() ||
       typeof email !== "string" ||
       !email.trim() ||
       typeof studentNum !== "string" ||
