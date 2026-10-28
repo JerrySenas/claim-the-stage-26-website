@@ -66,7 +66,7 @@ export default function YourTicketsPage() {
         </p>
         <label>
           Student Number
-          <input type="text" name="studentNum" inputMode="numeric" pattern="[0-9]*" required className={inputClass} />
+          <input type="text" name="studentNum" placeholder="Leave blank for non-SDCA students" inputMode="numeric" pattern="[0-9]*" required className={inputClass} />
         </label>
         <label>
           Email
