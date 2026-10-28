@@ -99,7 +99,7 @@ export default function PayButton({
           type="button"
           onClick={handlePay}
           disabled={loading}
-          className="w-full rounded-xl bg-[#652DC1] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#7a45d6] disabled:opacity-50"
+          className="w-full rounded-xl bg-[#B19CD9] px-4 py-3 font-semibold text-[#1a0f2e] transition-colors hover:bg-[#c4b3e3] disabled:opacity-50"
         >
           {loading ? "Generating QR code..." : "Pay with QR Ph"}
         </button>
@@ -110,8 +110,8 @@ export default function PayButton({
       )}
 
       {qrImage && (
-        <div className="flex w-full flex-col items-center gap-3 rounded-2xl border border-[#652DC1] bg-black p-4">
-          <h2 className="text-lg font-semibold text-[#652DC1]">
+        <div className="flex w-full flex-col items-center gap-3 rounded-2xl border border-[#B19CD9] bg-black p-4">
+          <h2 className="text-lg font-semibold text-[#e8e4f0]">
             Scan to Pay
           </h2>
 
@@ -133,7 +133,7 @@ export default function PayButton({
           <button
             type="button"
             onClick={() => router.refresh()}
-            className="rounded-xl border border-[#652DC1] px-4 py-2 text-[#652DC1] hover:bg-[#652DC1]/10"
+            className="rounded-xl border border-[#B19CD9] px-4 py-2 text-[#e8e4f0] hover:bg-[#B19CD9]/10"
           >
             I've paid — Check ticket status
           </button>
