@@ -62,7 +62,7 @@ export default function YourTicketsPage() {
         className="mb-6 flex flex-col gap-3 rounded-3xl border border-[#B19CD9] bg-black p-5 text-sm font-semibold text-[#B19CD9]"
       >
         <p className="font-normal text-neutral-400">
-          Enter the email and student number you booked with to see your tickets.
+          Enter the email you booked with, and your student number if you have one.
         </p>
         <label>
           Student Number
