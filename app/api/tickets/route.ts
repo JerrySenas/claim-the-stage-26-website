@@ -16,9 +16,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const email = (searchParams.get("email") ?? "").trim();
-    const studentNum = (searchParams.get("studentNum") ?? "").trim();
+    const studentNum = (searchParams.get("studentNum") ?? "").trim() || "N/A";
 
-    if (!email || !/^[0-9]+$/.test(studentNum)) {
+    if (!email || (studentNum !== "N/A" && !/^[0-9]+$/.test(studentNum))) {
       return NextResponse.json(
         { error: "Enter the email and student number you booked with." },
         { status: 400 }
@@ -209,7 +209,7 @@ export async function POST(request: Request) {
         ...parsedName.value, // surname, firstName, middleInitial
         name: formatFullName(parsedName.value), // combined, for admin page and lookups
         email: email.trim(),
-        studentNum: studentNum.trim(),
+        studentNum: studentNumValue,
         seats: selectedSeats.map((seat) => seat.seatCode),
         silver,
         price: totalPrice,
