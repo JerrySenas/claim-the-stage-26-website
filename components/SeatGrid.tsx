@@ -389,10 +389,16 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
             Email
             <input type="email" name="email" required className="mt-1 w-full rounded-lg border border-[#B19CD9] bg-black px-3 py-2 font-normal text-[#B19CD9] focus:outline-none focus:ring-2 focus:ring-[#e8e4f0]" />
           </label>
+
+          const canSubmit = !(submitting || offline || (selectedSeats.length === 0 && silver === 0));
+
           <button
             type="submit"
-            disabled={submitting || offline || (selectedSeats.length === 0 && silver === 0)}
-            className="w-full rounded-lg bg-[#7A3FE0] px-4 py-2 font-semibold text-[#e6ccff] hover:bg=[#f7f0ff] disabled:hover:bg=[#7A3FE0] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!canSubmit}
+            className={clsx(
+              "w-full rounded-lg bg-[#7A3FE0] px-4 py-2 font-semibold text-[#e6ccff]", 
+              canSubmit ? "hover:bg=[#f7f0ff]" : "hover:bg=[#7A3FE0] cursor-not-allowed opacity-50"
+              )}
           >
             {submitting ? "Booking..." : "Submit"}
           </button>
