@@ -86,7 +86,6 @@ export async function POST(request: Request) {
       typeof email !== "string" ||
       !email.trim() ||
       typeof studentNum !== "string" ||
-      !/^[0-9]+$/.test(studentNum.trim()) ||
       typeof seatsJSON !== "string" ||
       typeof silverValue !== "string"
     ) {
@@ -95,6 +94,15 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    const studentNumTrimmed = studentNum.trim();
+    if (studentNumTrimmed !== "" && !/^[0-9]+$/.test(studentNumTrimmed)) {
+      return NextResponse.json(
+        { error: "Student number must be digits only (leave blank if you're not a student)." },
+        { status: 400 }
+      );
+    }
+    const studentNumValue = studentNumTrimmed || "N/A";
 
     let seatCodes: unknown;
     try {
