@@ -7,11 +7,11 @@ import Countdown from "./Countdown";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5 border-b border-[#652DC1]/30 py-3 last:border-b-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-      <dt className="text-xs font-bold uppercase tracking-widest text-[#652DC1]/70">
+    <div className="flex flex-col gap-0.5 border-b border-[#B19CD9]/30 py-3 last:border-b-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+      <dt className="text-xs font-bold uppercase tracking-widest text-[#B19CD9]">
         {label}
       </dt>
-      <dd className="break-all text-base font-medium text-[#652DC1] sm:text-right">
+      <dd className="break-all text-base font-medium text-[#e8e4f0] sm:text-right">
         {children}
       </dd>
     </div>
@@ -49,12 +49,12 @@ export default async function TicketPage({
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4">
-      <h1 className="text-2xl font-bold text-[#652DC1]">Your Ticket</h1>
+      <h1 className="text-2xl font-bold text-[#e8e4f0]">Your Ticket</h1>
 
       {/* Client details */}
-      <div className="rounded-3xl border border-[#652DC1] bg-black p-5 shadow-lg shadow-[#652DC1]/20">
+      <div className="rounded-3xl border border-[#B19CD9] bg-black p-5 shadow-lg shadow-[#B19CD9]/20">
         <div className="mb-1 flex items-center justify-between gap-3">
-          <span className="text-xs font-bold uppercase tracking-widest text-[#652DC1]/70">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#B19CD9]">
             Ticket details
           </span>
           <span
@@ -89,7 +89,7 @@ export default async function TicketPage({
       )}
 
       {ticket.status === "confirmed" && (
-        <div className="flex flex-col gap-3 rounded-3xl border border-[#652DC1] bg-black p-5">
+        <div className="flex flex-col gap-3 rounded-3xl border border-[#B19CD9] bg-black p-5">
           <p className="text-sm font-medium text-green-400">
             Payment confirmed. See you at the show!
           </p>
@@ -97,12 +97,12 @@ export default async function TicketPage({
           <img
             src={`/ticket/${ticketId}/image`}
             alt="E-ticket"
-            className="w-full rounded-2xl border border-[#652DC1]"
+            className="w-full rounded-2xl border border-[#B19CD9]"
           />
           <a
             href={`/ticket/${ticketId}/image`}
             download={`ticket-${ticketId}.png`}
-            className="w-full rounded-xl bg-[#652DC1] px-4 py-3 text-center font-semibold text-white transition-colors hover:bg-[#7a45d6]"
+            className="w-full rounded-xl bg-[#B19CD9] px-4 py-3 text-center font-semibold text-[#1a0f2e] transition-colors hover:bg-[#c4b3e3]"
           >
             Download ticket
           </a>
