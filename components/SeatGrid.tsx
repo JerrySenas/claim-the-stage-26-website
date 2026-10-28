@@ -101,8 +101,6 @@ const SeatButton = ({ seat, selected, onClick }: SeatButtonProps) => {
   );
 };
 
-const canSubmit = !(submitting || offline || (selectedSeats.length === 0 && silver === 0));
-
 const LegendItem = ({ className, children }: { className: string; children: ReactNode }) => (
   <span className="flex items-center gap-2">
     <span className={clsx("inline-block h-4 w-4 rounded", className)} />
