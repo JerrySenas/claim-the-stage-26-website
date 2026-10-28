@@ -37,15 +37,15 @@ export default function Countdown({ expiresAt }: { expiresAt: string }) {
   return (
     <div
       className={`w-full rounded-2xl border bg-black p-4 text-center ${
-        urgent ? "border-red-500" : "border-[#652DC1]"
+        urgent ? "border-red-500" : "border-[#B19CD9]"
       }`}
     >
-      <p className="text-xs font-bold uppercase tracking-widest text-[#652DC1]/70">
+      <p className="text-xs font-bold uppercase tracking-widest text-[#B19CD9]">
         Reservation expires in
       </p>
       <p
         className={`font-mono text-4xl font-bold tabular-nums ${
-          urgent ? "text-red-400" : "text-[#652DC1]"
+          urgent ? "text-red-400" : "text-[#e8e4f0]"
         }`}
         aria-live="off"
       >
