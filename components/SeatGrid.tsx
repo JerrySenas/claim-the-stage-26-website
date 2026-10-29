@@ -382,7 +382,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
             </label>
           </div>
           <label className="block text-sm font-semibold">
-            Student Number
+            Student Number (If not a Student of St. Dominic College of Asia, Inc., please leave this space blank)
             <input type="text" name="studentNum" inputMode="numeric" pattern="[0-9]*" placeholder="Only for SDCA Students" className="mt-1 w-full rounded-lg border border-[#B19CD9] bg-black px-3 py-2 font-normal text-[#B19CD9] focus:outline-none focus:ring-2 focus:ring-[#e8e4f0]" />
           </label>
           <label className="block text-sm font-semibold">
