@@ -7,7 +7,7 @@ export default function Home() {
       <section className="relative overflow-hidden rounded-2xl bg-neutral-900 p-8 text-center text-neutral-100 sm:p-12">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/logo.png"
+          src="/hero.jpg"
           alt=""
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25"
