@@ -15,7 +15,7 @@ export default function Home() {
         <div className="relative grid items-center gap-8 md:grid-cols-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/poster.jpg"
+            src="/poster.png"
             alt="Claim the Stage, Battle of the Bands 2026"
             className="mx-auto w-full max-w-md rounded-xl md:max-w-none"
           />
