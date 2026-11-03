@@ -16,19 +16,19 @@ export default function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-neutral-800 bg-[#121212]">
-      <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-6 px-4 py-4">
-        <Link href="/" aria-label="Claim the Stage 2026 – Home" className="flex items-center">
-          <Image
-            src="/logo.png"
-            alt="Claim the Stage, Battle of the Bands 2026"
-            width={1400}
-            height={240}
-            unoptimized
-            priority
-            className="h-15 w-auto"
-          />
-        </Link>
-
+        <div className="container mx-auto flex flex-wrap items-center justify-between gap-x-6 px-4">
+          <Link href="/" aria-label="Claim the Stage 2026 – Home" className="flex items-center">
+            <Image
+              src="/logo.png"
+              alt="Claim the Stage, Battle of the Bands 2026"
+              width={1400}
+              height={240}
+              unoptimized
+              priority
+              className="block h-16 w-auto"
+            />
+          </Link>
+          
         <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
           {links.map((link) => {
             const active =
