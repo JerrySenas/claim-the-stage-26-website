@@ -249,8 +249,8 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
   return (
     <>
       <h3 className="text-lg font-semibold p-4">{title}</h3>
-      <div className="mx-auto w-fit max-w-full rounded-lg border bg-neutral-900 p-3 text-neutral-100 text-align: center">
-        <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2 text-xs">
+      <div className="mx-auto w-fit max-w-full rounded-lg border bg-neutral-900 p-3 text-neutral-100">
+        <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-center">
           <LegendItem className="bg-slate-200">Platinum ₱175 ({remaining.PLATINUM} left)</LegendItem>
           <LegendItem className="bg-amber-400">Gold ₱110 ({remaining.GOLD} left)</LegendItem>
           <LegendItem className="border border-dashed border-neutral-400 bg-neutral-800">Silver ₱80 (standing)</LegendItem>
