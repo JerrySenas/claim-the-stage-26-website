@@ -34,7 +34,7 @@ export const BOOKABLE_TIERS: Tier[] = ["PLATINUM", "GOLD"];
 /** Seats already booked and paid (valid, payment-validated form responses). */
 export const BOOKED_SEATS: string[] = ["GOA1", "GOA3", "GOA4", "GOAJ1", "GOF1", "GOF2", "GOF3", "GOH1", "GOH5", "GOI1", "GOJ5", "GOP1", "GOS2", "GOT5", "PLA2", "PLA3", "PLA5", "PLB1", "PLB3", "PLD1", "PLE3", "PLF1", "PLF2", "PLG1", "PLH1", "PLH2", "PLH3", "PLH4", "PLH5", "PLI1", "PLI2", "PLJ1", "PLK1", "PLK2", "PLL1"];
 
-const RAW_LAYOUT_SEATS: LayoutSeat[] = [
+export const RAW_LAYOUT_SEATS: LayoutSeat[] = [
 /*{ seatCode: "GOAE5", tier: "GOLD", x: 0, y: 14, label: "AE5" },
   { seatCode: "GOAE4", tier: "GOLD", x: 1, y: 14, label: "AE4" },
   { seatCode: "GOAE3", tier: "GOLD", x: 2, y: 14, label: "AE3" },
