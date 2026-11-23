@@ -12,15 +12,19 @@ export async function GET() {
     const seatsFromDb = await collection.find({}).toArray();
 
     // Map MongoDB documents to the shape your frontend expects
-    const seats = seatsFromDb.map((doc) => ({
-      seatCode: doc.seatCode,
-      tier: doc.tier,
-      label: doc.label,
-      status: doc.status,
-      // Add these static fields if they are not stored in MongoDB:
-      x: doc.x, // Replace with actual coordinate logic if not in DB
-      y: doc.y,
-    }));
+    const seats = seatsFromDb.map((doc) => {
+      const layoutSeat = LAYOUT_SEATS.find((seat) => seat.seatCode === doc.seatCode);
+
+      return {
+        seatCode: doc.seatCode,
+        tier: doc.tier,
+        label: doc.label,
+        status: doc.status,
+        // Coordinates come from seatLayout.ts; fall back to MongoDB if no layout match exists.
+        x: layoutSeat?.x ?? doc.x,
+        y: layoutSeat?.y ?? doc.y,
+      };
+    });
 
     return NextResponse.json(seats);
   } catch (error) {
