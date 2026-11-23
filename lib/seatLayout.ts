@@ -353,7 +353,7 @@ export const RAW_LAYOUT_SEATS: LayoutSeat[] = [
   { seatCode: "GOAJ5", tier: "GOLD", x: 16, y: 22, label: "AJ5" },
   { seatCode: "GOAJ4", tier: "GOLD", x: 16, y: 21, label: "AJ4" },
   { seatCode: "GOAJ3", tier: "GOLD", x: 16, y: 20, label: "AJ3" },
-  { seatCode: "GOAJ2", tier: "GOLD", x: 16, y: 18, label: "AJ2" },
+  { seatCode: "GOAJ2", tier: "GOLD", x: 16, y: 19, label: "AJ2" },
   { seatCode: "GOAJ1", tier: "GOLD", x: 16, y: 18, label: "AJ1" },
   { seatCode: "GOAI5", tier: "GOLD", x: 15, y: 22, label: "AI5" },
   { seatCode: "GOAI4", tier: "GOLD", x: 15, y: 21, label: "AI4" },
