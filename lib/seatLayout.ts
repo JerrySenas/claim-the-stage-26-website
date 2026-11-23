@@ -18,13 +18,13 @@ export interface LayoutSeat {
 }
 
 export const GRID_COLS = 29;
-export const GRID_ROWS = 23;
+export const GRID_ROWS = 27;
 
 /** Silver is a standing area: no seat codes, any quantity, no per-booking limit. */
 export const SILVER_PRICE = 100;
 export const SILVER_MAX = 6000; // sanity cap = total Silver capacity in the workbook
 /** Silver spans the full width (AA5 on the left to K5-R on the right). */
-export const SILVER_AREA = { x: 0, y: 21, w: 29, h: 2 };
+export const SILVER_AREA = { x: 0, y: 25, w: 29, h: 2 };
 
 export const TIER_PRICE: Record<Tier, number> = { VIP: 0, PLATINUM: 250, GOLD: 150 };
 
@@ -34,7 +34,7 @@ export const BOOKABLE_TIERS: Tier[] = ["PLATINUM", "GOLD"];
 /** Seats already booked and paid (valid, payment-validated form responses). */
 export const BOOKED_SEATS: string[] = ["GOA1", "GOA3", "GOA4", "GOAJ1", "GOF1", "GOF2", "GOF3", "GOH1", "GOH5", "GOI1", "GOJ5", "GOP1", "GOS2", "GOT5", "PLA2", "PLA3", "PLA5", "PLB1", "PLB3", "PLD1", "PLE3", "PLF1", "PLF2", "PLG1", "PLH1", "PLH2", "PLH3", "PLH4", "PLH5", "PLI1", "PLI2", "PLJ1", "PLK1", "PLK2", "PLL1"];
 
-export const LAYOUT_SEATS: LayoutSeat[] = [
+const RAW_LAYOUT_SEATS: LayoutSeat[] = [
 /*{ seatCode: "GOAE5", tier: "GOLD", x: 0, y: 14, label: "AE5" },
   { seatCode: "GOAE4", tier: "GOLD", x: 1, y: 14, label: "AE4" },
   { seatCode: "GOAE3", tier: "GOLD", x: 2, y: 14, label: "AE3" },
@@ -402,3 +402,28 @@ export const LAYOUT_SEATS: LayoutSeat[] = [
   { seatCode: "GOY4", tier: "GOLD", x: 9, y: 21, label: "Y4" },
   { seatCode: "GOY5", tier: "GOLD", x: 9, y: 22, label: "Y5" },
 ];
+
+// Second Gold band goes below the A-E / F-J / K-O Gold block (which ends at y=17).
+const SECOND_BAND_Y = 19; // y=18 stays empty as the gap
+
+function move(s: LayoutSeat, x: number, y: number): LayoutSeat {
+  return { ...s, x, y };
+}
+
+export const LAYOUT_SEATS: LayoutSeat[] = RAW_LAYOUT_SEATS.map((s) => {
+  // AK-AO (x 0-4, y 2-6)    -> under A-E (x 6-10)
+  if (/^GOA[K-O]\d$/.test(s.seatCode))
+    return move(s, s.x + 6, s.y - 2 + SECOND_BAND_Y);
+
+  // AF-AJ (x 0-4, y 8-12)   -> under F-J (x 12-16)
+  if (/^GOA[F-J]\d$/.test(s.seatCode))
+    return move(s, s.x + 12, s.y - 8 + SECOND_BAND_Y);
+
+  // U-Z (x 24-28, y 2-6)    -> under K-O (x 18-22)
+  if (/^GO[U-Z]\d$/.test(s.seatCode))
+    return move(s, s.x - 6, s.y - 2 + SECOND_BAND_Y);
+
+  return s;
+});
+
+
