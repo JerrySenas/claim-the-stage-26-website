@@ -21,7 +21,7 @@ export const GRID_COLS = 29;
 export const GRID_ROWS = 27;
 
 /** Silver is a standing area: no seat codes, any quantity, no per-booking limit. */
-export const SILVER_PRICE = 100;
+export const SILVER_PRICE = 80;
 export const SILVER_MAX = 6000; // sanity cap = total Silver capacity in the workbook
 /** Silver spans the full width (AA5 on the left to K5-R on the right). */
 export const SILVER_AREA = { x: 0, y: 25, w: 29, h: 2 };
