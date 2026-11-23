@@ -1,7 +1,7 @@
 // app/api/seats/route.ts
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { LAYOUT_SEATS } from "@/lib/seatLayout";
+import { RAW_LAYOUT_SEATS } from "@/lib/seatLayout";
 
 export async function GET() {
   try {
@@ -14,7 +14,7 @@ export async function GET() {
 
     // Map MongoDB documents to the shape your frontend expects
     const seats = seatsFromDb.map((doc) => {
-      const layoutSeat = LAYOUT_SEATS.find((seat) => seat.seatCode === doc.seatCode);
+      const layoutSeat = RAW_LAYOUT_SEATS.find((seat) => seat.seatCode === doc.seatCode);
 
       return {
         seatCode: doc.seatCode,
