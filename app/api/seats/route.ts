@@ -12,18 +12,19 @@ export async function GET() {
     // Fetch seats. You may want to filter or project specific fields.
     const seatsFromDb = await collection.find({}).toArray();
 
-    // Map MongoDB documents to the shape your frontend expects
+    // Use RAW_LAYOUT_SEATS as the source of truth for seat coordinates.
     const seats = seatsFromDb.map((doc) => {
-      const layoutSeat = RAW_LAYOUT_SEATS.find((seat) => seat.seatCode === doc.seatCode);
+      const layoutSeat = RAW_LAYOUT_SEATS.find(
+        (seat) => seat.seatCode === doc.seatCode
+      );
 
       return {
         seatCode: doc.seatCode,
         tier: doc.tier,
         label: doc.label,
         status: doc.status,
-        // Coordinates come from seatLayout.ts; fall back to MongoDB if no layout match exists.
-        x: layoutSeat?.x ?? doc.x,
-        y: layoutSeat?.y ?? doc.y,
+        x: layoutSeat?.x,
+        y: layoutSeat?.y,
       };
     });
 
