@@ -274,9 +274,6 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
               Stage
             </Label>
 
-            <Label x={0} y={1} w={5} className="text-amber-400">Gold</Label>
-            <Label x={24} y={1} w={5} className="text-amber-400">Gold</Label>
-
             <Label x={5} y={4} w={1} className="text-fuchsia-300">VIP</Label>
             <Label x={5} y={8} w={1} className="text-slate-300">Plat.</Label>
             <Label x={5} y={15} w={1} className="text-amber-400">Gold</Label>
