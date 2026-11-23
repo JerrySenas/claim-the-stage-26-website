@@ -1,6 +1,7 @@
 // app/api/seats/route.ts
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { LAYOUT_SEATS } from "@/lib/seatLayout";
 
 export async function GET() {
   try {
