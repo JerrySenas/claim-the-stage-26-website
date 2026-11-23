@@ -251,9 +251,9 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
       <h3 className="text-lg font-semibold p-4">{title}</h3>
       <div className="rounded-lg border bg-neutral-900 p-4 text-neutral-100">
         <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2 text-xs">
-          <LegendItem className="bg-slate-200">Platinum ₱250 ({remaining.PLATINUM} left)</LegendItem>
-          <LegendItem className="bg-amber-400">Gold ₱150 ({remaining.GOLD} left)</LegendItem>
-          <LegendItem className="border border-dashed border-neutral-400 bg-neutral-800">Silver ₱100 (standing)</LegendItem>
+          <LegendItem className="bg-slate-200">Platinum ₱175 ({remaining.PLATINUM} left)</LegendItem>
+          <LegendItem className="bg-amber-400">Gold ₱110 ({remaining.GOLD} left)</LegendItem>
+          <LegendItem className="border border-dashed border-neutral-400 bg-neutral-800">Silver ₱80 (standing)</LegendItem>
           <LegendItem className="bg-fuchsia-900 opacity-60">VIP (reserved)</LegendItem>
           <LegendItem className="bg-blue-500">Your selection</LegendItem>
           <LegendItem className="bg-orange-500">On hold</LegendItem>
