@@ -18,8 +18,8 @@ interface Seat {
   status: SeatStatus;
 }
 
-const CELL = 32; // px, seat size
-const GAP = 4; // px
+const CELL = 40; // px, seat size
+const GAP = 5; // px
 
 const TIER_STYLE: Record<Tier, string> = {
   PLATINUM: "bg-slate-200 text-slate-900 hover:bg-white",
@@ -84,7 +84,7 @@ const SeatButton = ({ seat, selected, onClick }: SeatButtonProps) => {
       title={`${seat.tier} ${seat.label} (${seat.seatCode}) · ${state}`}
       style={place(seat.x, seat.y)}
       className={clsx(
-        "flex items-center justify-center rounded-md text-[9px] font-semibold leading-none transition-colors",
+        "flex items-center justify-center rounded-md text-xs font-bold leading-none transition-colors",
         {
           "bg-blue-500 text-white ring-2 ring-blue-300": selected,
           [TIER_STYLE[seat.tier]]: !selected && (bookable || seat.status === "reserved"),
@@ -249,7 +249,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
   return (
     <>
       <h3 className="text-lg font-semibold p-4">{title}</h3>
-      <div className="rounded-lg border bg-neutral-900 p-4 text-neutral-100">
+      <div className="mx-auto w-fit max-w-full rounded-lg border bg-neutral-900 p-3 text-neutral-100">
         <div className="mb-4 flex flex-wrap gap-x-5 gap-y-2 text-xs">
           <LegendItem className="bg-slate-200">Platinum ₱175 ({remaining.PLATINUM} left)</LegendItem>
           <LegendItem className="bg-amber-400">Gold ₱110 ({remaining.GOLD} left)</LegendItem>
@@ -260,7 +260,7 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
           <LegendItem className="bg-neutral-700">Booked</LegendItem>
         </div>
 
-        <div className="overflow-x-auto pb-2">
+        <div className="w-full overflow-x-auto pb-2">
           <div
             className="mx-auto grid"
             style={{
