@@ -17,8 +17,8 @@ export interface LayoutSeat {
   label: string;
 }
 
-export const GRID_COLS = 17;
-export const GRID_ROWS = 21;
+export const GRID_COLS = 29;
+export const GRID_ROWS = 23;
 
 /** Silver is a standing area: no seat codes, any quantity, no per-booking limit. */
 export const SILVER_PRICE = 100;
