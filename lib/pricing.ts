@@ -2,11 +2,11 @@ export type Tier = "VIP" | "PLATINUM" | "GOLD";
 
 export const TIER_PRICE: Record<Tier, number> = {
   VIP: 0,
-  PLATINUM: 250,
-  GOLD: 150,
+  PLATINUM: 175,
+  GOLD: 110,
 };
 
-export const SILVER_PRICE = 100;
+export const SILVER_PRICE = 80;
 
 export interface PricedSeat {
   tier: Tier;
