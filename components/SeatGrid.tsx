@@ -281,10 +281,6 @@ export default function SeatList({ endpoint, title }: SeatListProps) {
             <Label x={5} y={8} w={1} className="text-slate-300">Plat.</Label>
             <Label x={5} y={15} w={1} className="text-amber-400">Gold</Label>
 
-            <Label x={11} y={11} className="text-neutral-400">Gate</Label>
-            <Label x={17} y={11} className="text-neutral-400">Gate</Label>
-            <Label x={11} y={18} className="text-neutral-400">Gate</Label>
-            <Label x={17} y={18} className="text-neutral-400">Gate</Label>
 
             <div
               style={place(SILVER_AREA.x, SILVER_AREA.y, SILVER_AREA.w, SILVER_AREA.h)}
